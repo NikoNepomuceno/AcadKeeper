@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useAuth } from "@/lib/auth-context"
 
 export function InventoryDashboard() {
+  type LogRange = "day" | "week" | "month" | "year"
   const [items, setItems] = useState<InventoryItem[]>([])
   const [logs, setLogs] = useState<InventoryLog[]>([])
   const [isFormOpen, setIsFormOpen] = useState(false)
@@ -28,13 +29,14 @@ export function InventoryDashboard() {
   const [activeView, setActiveView] = useState("dashboard")
   const { isAdmin } = useAuth()
   const [isFormMasked, setIsFormMasked] = useState(false)
+  const [logRange, setLogRange] = useState<LogRange>("week")
 
   const supabase = createClient()
 
   useEffect(() => {
     fetchItems()
     fetchLogs()
-  }, [showArchived])
+  }, [showArchived, logRange])
 
   async function fetchItems() {
     setLoading(true)
@@ -52,12 +54,33 @@ export function InventoryDashboard() {
     setLoading(false)
   }
 
+  function getRangeStartIso(range: LogRange) {
+    const now = new Date()
+    const start = new Date(now)
+    if (range === "day") {
+      start.setHours(0, 0, 0, 0)
+    } else if (range === "week") {
+      // Start of week: Monday
+      const day = (now.getDay() + 6) % 7 // Mon=0 ... Sun=6
+      start.setDate(now.getDate() - day)
+      start.setHours(0, 0, 0, 0)
+    } else if (range === "month") {
+      start.setDate(1)
+      start.setHours(0, 0, 0, 0)
+    } else if (range === "year") {
+      start.setMonth(0, 1)
+      start.setHours(0, 0, 0, 0)
+    }
+    return start.toISOString()
+  }
+
   async function fetchLogs() {
+    const startIso = getRangeStartIso(logRange)
     const { data, error } = await supabase
       .from("inventory_logs")
       .select("*")
+      .gte("created_at", startIso)
       .order("created_at", { ascending: false })
-      .limit(50)
 
     if (error) {
       console.error("[v0] Error fetching logs:", error)
@@ -134,7 +157,9 @@ export function InventoryDashboard() {
             />
           )}
 
-          {activeView === "logs" && <ActivityLog logs={logs} />}
+          {activeView === "logs" && (
+            <ActivityLog {...({ logs, range: logRange, onRangeChange: setLogRange } as any)} />
+          )}
 
           {activeView === "users" && isAdmin && <UserManagement />}
 

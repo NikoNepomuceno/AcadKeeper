@@ -1,16 +1,46 @@
 "use client"
 
+import React from "react"
 import type { InventoryLog } from "@/types/inventory"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Edit, Archive, TrendingUp, TrendingDown, ArchiveRestore } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Plus, Edit, Archive, TrendingUp, TrendingDown, ArchiveRestore, Download, FileText, FileSpreadsheet, File } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { exportToCSV, exportToPDF, exportToExcel, getExportFilename } from "@/lib/export-utils"
 
-interface ActivityLogProps {
+export type LogRange = "day" | "week" | "month" | "year"
+
+export type ActivityLogProps = {
   logs: InventoryLog[]
+  range?: LogRange
+  onRangeChange?: (range: LogRange) => void
 }
 
-export function ActivityLog({ logs }: ActivityLogProps) {
+export const ActivityLog: React.FC<ActivityLogProps> = ({ logs, range, onRangeChange }) => {
+  async function handleExport(format: 'csv' | 'pdf' | 'xlsx') {
+    const filename = getExportFilename(format, range)
+    
+    try {
+      switch (format) {
+        case 'csv':
+          exportToCSV(logs, filename)
+          break
+        case 'pdf':
+          await exportToPDF(logs, filename)
+          break
+        case 'xlsx':
+          await exportToExcel(logs, filename)
+          break
+      }
+    } catch (error) {
+      console.error('Export failed:', error)
+      alert('Export failed. Please try again.')
+    }
+  }
+
   function getActionIcon(actionType: string) {
     switch (actionType) {
       case "created":
@@ -78,10 +108,74 @@ export function ActivityLog({ logs }: ActivityLogProps) {
     }
   }
 
+  function formatDaySeparator(dateString: string) {
+    const date = new Date(dateString)
+    return new Intl.DateTimeFormat("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }).format(date)
+  }
+
+  // Group logs by calendar day; logs are assumed sorted desc by created_at
+  const grouped: { label: string; items: InventoryLog[] }[] = []
+  let currentLabel: string | null = null
+  for (const log of logs) {
+    const label = new Date(log.created_at).toDateString()
+    if (label !== currentLabel) {
+      grouped.push({ label, items: [log] })
+      currentLabel = label
+    } else {
+      grouped[grouped.length - 1].items.push(log)
+    }
+  }
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Activity Log</CardTitle>
+        <div className="flex items-center justify-between gap-4">
+          <CardTitle>Activity Log</CardTitle>
+          <div className="flex items-center gap-2">
+            {logs.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Download className="mr-2 h-4 w-4" />
+                    Export
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => handleExport('csv')}>
+                    <File className="mr-2 h-4 w-4" />
+                    Export as CSV
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExport('pdf')}>
+                    <FileText className="mr-2 h-4 w-4" />
+                    Export as PDF
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExport('xlsx')}>
+                    <FileSpreadsheet className="mr-2 h-4 w-4" />
+                    Export as Excel
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+            {onRangeChange && (
+              <Select value={range} onValueChange={(v) => onRangeChange(v as LogRange)}>
+                <SelectTrigger size="sm" className="w-44">
+                  <SelectValue placeholder="Filter range" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="day">Today</SelectItem>
+                  <SelectItem value="week">This week</SelectItem>
+                  <SelectItem value="month">This month</SelectItem>
+                  <SelectItem value="year">This year</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         {logs.length === 0 ? (
@@ -98,13 +192,22 @@ export function ActivityLog({ logs }: ActivityLogProps) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {logs.map((log) => (
-                  <TableRow key={log.id}>
-                    <TableCell className="text-muted-foreground">{formatDate(log.created_at)}</TableCell>
-                    <TableCell>{getActionBadge(log.action_type)}</TableCell>
-                    <TableCell>{getLogDescription(log)}</TableCell>
-                    <TableCell className="text-muted-foreground">{log.notes || "—"}</TableCell>
-                  </TableRow>
+                {grouped.map((group) => (
+                  <React.Fragment key={`grp-${group.label}`}>
+                    <TableRow>
+                      <TableCell colSpan={4} className="bg-muted/60 text-muted-foreground font-medium">
+                        {formatDaySeparator(group.items[0].created_at)}
+                      </TableCell>
+                    </TableRow>
+                    {group.items.map((log) => (
+                      <TableRow key={log.id}>
+                        <TableCell className="text-muted-foreground">{formatDate(log.created_at)}</TableCell>
+                        <TableCell>{getActionBadge(log.action_type)}</TableCell>
+                        <TableCell>{getLogDescription(log)}</TableCell>
+                        <TableCell className="text-muted-foreground">{log.notes || "—"}</TableCell>
+                      </TableRow>
+                    ))}
+                  </React.Fragment>
                 ))}
               </TableBody>
             </Table>
