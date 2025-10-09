@@ -89,7 +89,7 @@ export function UserManagement() {
                 <TableHead>Email</TableHead>
                 <TableHead>Current Role</TableHead>
                 <TableHead>Created At</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                {/* <TableHead className="text-right">Actions</TableHead> */}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -104,7 +104,7 @@ export function UserManagement() {
                   </TableCell>
                   <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
                   <TableCell className="text-right">
-                    <Select
+                    {/* <Select
                       value={user.role}
                       onValueChange={(value: "admin" | "staff") => updateUserRole(user.user_id, value)}
                     >
@@ -115,7 +115,7 @@ export function UserManagement() {
                         <SelectItem value="admin">Admin</SelectItem>
                         <SelectItem value="staff">Staff</SelectItem>
                       </SelectContent>
-                    </Select>
+                    </Select> */}
                   </TableCell>
                 </TableRow>
               ))}

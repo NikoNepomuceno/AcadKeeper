@@ -27,6 +27,7 @@ export function InventoryDashboard() {
   const [loading, setLoading] = useState(true)
   const [activeView, setActiveView] = useState("dashboard")
   const { isAdmin } = useAuth()
+  const [isFormMasked, setIsFormMasked] = useState(false)
 
   const supabase = createClient()
 
@@ -144,11 +145,16 @@ export function InventoryDashboard() {
           )}
 
           <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className={`max-w-2xl ${isFormMasked ? "invisible pointer-events-none" : ""}`}>
               <DialogHeader>
                 <DialogTitle>{editingItem ? "Edit Item" : "Add New Item"}</DialogTitle>
               </DialogHeader>
-              <InventoryForm item={editingItem} onSuccess={handleFormSuccess} onCancel={handleCloseForm} />
+              <InventoryForm
+                item={editingItem}
+                onSuccess={handleFormSuccess}
+                onCancel={handleCloseForm}
+                onConfirmDialogOpenChange={(open) => setIsFormMasked(open)}
+              />
             </DialogContent>
           </Dialog>
 

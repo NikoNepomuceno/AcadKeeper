@@ -9,6 +9,17 @@ import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/lib/auth-context"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 interface SidebarNavProps {
   activeView: string
@@ -18,6 +29,7 @@ interface SidebarNavProps {
 export function SidebarNav({ activeView, onViewChange }: SidebarNavProps) {
   const [isOpen, setIsOpen] = useState(true)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [isLogoutOpen, setIsLogoutOpen] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
   const { profile, isAdmin } = useAuth()
@@ -116,15 +128,28 @@ export function SidebarNav({ activeView, onViewChange }: SidebarNavProps) {
           </nav>
 
           <div className="border-t pt-4">
-            <Button
-              variant="ghost"
-              className="w-full justify-start text-destructive hover:text-destructive"
-              onClick={handleLogout}
-              disabled={isLoggingOut}
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              {isLoggingOut ? "Logging out..." : "Logout"}
-            </Button>
+            <AlertDialog open={isLogoutOpen} onOpenChange={setIsLogoutOpen}>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start text-destructive hover:text-destructive"
+                  disabled={isLoggingOut}
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  {isLoggingOut ? "Logging out..." : "Logout"}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Logout?</AlertDialogTitle>
+                  <AlertDialogDescription>You will be signed out.</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleLogout}>Logout</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </div>
       </aside>

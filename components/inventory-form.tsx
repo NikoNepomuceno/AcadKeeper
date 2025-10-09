@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { createClient } from "@/lib/supabase/client"
 import type { InventoryItem } from "@/types/inventory"
 import { CATEGORIES } from "@/lib/constants"
@@ -11,14 +11,25 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+} from "@/components/ui/alert-dialog"
 
 interface InventoryFormProps {
   item: InventoryItem | null
   onSuccess: () => void
   onCancel: () => void
+  onConfirmDialogOpenChange?: (open: boolean) => void
 }
 
-export function InventoryForm({ item, onSuccess, onCancel }: InventoryFormProps) {
+export function InventoryForm({ item, onSuccess, onCancel, onConfirmDialogOpenChange }: InventoryFormProps) {
   const [formData, setFormData] = useState({
     item_name: "",
     category: "",
@@ -28,7 +39,18 @@ export function InventoryForm({ item, onSuccess, onCancel }: InventoryFormProps)
     location: "",
     notes: "",
   })
+  const [initialData, setInitialData] = useState({
+    item_name: "",
+    category: "",
+    quantity: 0,
+    unit: "",
+    minimum_stock: 0,
+    location: "",
+    notes: "",
+  })
   const [loading, setLoading] = useState(false)
+  const [isConfirmSaveOpen, setIsConfirmSaveOpen] = useState(false)
+  const [isConfirmCancelOpen, setIsConfirmCancelOpen] = useState(false)
   const { toast } = useToast()
 
   const supabase = createClient()
@@ -44,50 +66,58 @@ export function InventoryForm({ item, onSuccess, onCancel }: InventoryFormProps)
         location: item.location || "",
         notes: item.notes || "",
       })
+      setInitialData({
+        item_name: item.item_name,
+        category: item.category,
+        quantity: item.quantity,
+        unit: item.unit,
+        minimum_stock: item.minimum_stock,
+        location: item.location || "",
+        notes: item.notes || "",
+      })
+    } else {
+      // For create mode, use the default empty state as initial snapshot
+      setInitialData({
+        item_name: "",
+        category: "",
+        quantity: 0,
+        unit: "",
+        minimum_stock: 0,
+        location: "",
+        notes: "",
+      })
     }
   }, [item])
 
+  useEffect(() => {
+    onConfirmDialogOpenChange?.(isConfirmSaveOpen || isConfirmCancelOpen)
+  }, [isConfirmSaveOpen, isConfirmCancelOpen])
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (item) {
+      setIsConfirmSaveOpen(true)
+      return
+    }
+
     setLoading(true)
-
     try {
-      if (item) {
-        const { error } = await supabase.from("inventory").update(formData).eq("id", item.id)
+      const { data, error } = await supabase.from("inventory").insert([formData]).select().single()
 
-        if (error) throw error
+      if (error) throw error
 
-        await supabase.from("inventory_logs").insert({
-          inventory_id: item.id,
-          action_type: "updated",
-          item_name: formData.item_name,
-          previous_quantity: item.quantity,
-          new_quantity: formData.quantity,
-          notes: "Item details updated",
-        })
+      await supabase.from("inventory_logs").insert({
+        inventory_id: data.id,
+        action_type: "created",
+        item_name: formData.item_name,
+        new_quantity: formData.quantity,
+        notes: "New item added to inventory",
+      })
 
-        toast({
-          title: "Success",
-          description: "Item updated successfully",
-        })
-      } else {
-        const { data, error } = await supabase.from("inventory").insert([formData]).select().single()
-
-        if (error) throw error
-
-        await supabase.from("inventory_logs").insert({
-          inventory_id: data.id,
-          action_type: "created",
-          item_name: formData.item_name,
-          new_quantity: formData.quantity,
-          notes: "New item added to inventory",
-        })
-
-        toast({
-          title: "Success",
-          description: "Item added successfully",
-        })
-      }
+      toast({
+        title: "Success",
+        description: "Item added successfully",
+      })
 
       onSuccess()
     } catch (error) {
@@ -100,6 +130,52 @@ export function InventoryForm({ item, onSuccess, onCancel }: InventoryFormProps)
     } finally {
       setLoading(false)
     }
+  }
+
+  async function confirmSave() {
+    if (!item) return
+    setLoading(true)
+    try {
+      const { error } = await supabase.from("inventory").update(formData).eq("id", item.id)
+
+      if (error) throw error
+
+      await supabase.from("inventory_logs").insert({
+        inventory_id: item.id,
+        action_type: "updated",
+        item_name: formData.item_name,
+        previous_quantity: item.quantity,
+        new_quantity: formData.quantity,
+        notes: "Item details updated",
+      })
+
+      toast({
+        title: "Success",
+        description: "Item updated successfully",
+      })
+
+      onSuccess()
+    } catch (error) {
+      console.error("[v0] Error saving item:", error)
+      toast({
+        title: "Error",
+        description: "Failed to save item. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+      setIsConfirmSaveOpen(false)
+    }
+  }
+
+  const isDirty = useMemo(() => JSON.stringify(formData) !== JSON.stringify(initialData), [formData, initialData])
+
+  function onCancelClick() {
+    if (isDirty) {
+      setIsConfirmCancelOpen(true)
+      return
+    }
+    onCancel()
   }
 
   return (
@@ -194,13 +270,41 @@ export function InventoryForm({ item, onSuccess, onCancel }: InventoryFormProps)
       </div>
 
       <div className="flex justify-end gap-2">
-        <Button type="button" variant="outline" onClick={onCancel}>
+        <Button type="button" variant="outline" onClick={onCancelClick}>
           Cancel
         </Button>
         <Button type="submit" disabled={loading}>
           {loading ? "Saving..." : item ? "Update Item" : "Add Item"}
         </Button>
       </div>
+
+      {/* Confirm update dialog */}
+      <AlertDialog open={isConfirmSaveOpen} onOpenChange={setIsConfirmSaveOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Update item?</AlertDialogTitle>
+            <AlertDialogDescription>This will overwrite the current item details.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmSave}>Update</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Confirm discard changes dialog */}
+      <AlertDialog open={isConfirmCancelOpen} onOpenChange={setIsConfirmCancelOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Discard changes?</AlertDialogTitle>
+            <AlertDialogDescription>Your unsaved edits will be lost.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep editing</AlertDialogCancel>
+            <AlertDialogAction onClick={onCancel}>Discard</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </form>
   )
 }
