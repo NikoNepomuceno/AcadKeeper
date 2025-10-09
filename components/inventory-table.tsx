@@ -16,6 +16,16 @@ import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/lib/auth-context"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+} from "@/components/ui/alert-dialog"
 
 interface InventoryTableProps {
   items: InventoryItem[]
@@ -42,15 +52,24 @@ export function InventoryTable({
   const [categoryFilter, setCategoryFilter] = useState<string>("all")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [locationFilter, setLocationFilter] = useState<string>("all")
+  const [isArchiveConfirmOpen, setIsArchiveConfirmOpen] = useState(false)
+  const [itemToArchive, setItemToArchive] = useState<InventoryItem | null>(null)
 
   const supabase = createClient()
   const { toast } = useToast()
   const { isAdmin } = useAuth()
 
-  async function handleArchive(item: InventoryItem) {
-    const newArchivedState = !item.is_archived
+  function handleArchive(item: InventoryItem) {
+    setItemToArchive(item)
+    setIsArchiveConfirmOpen(true)
+  }
 
-    const { error } = await supabase.from("inventory").update({ is_archived: newArchivedState }).eq("id", item.id)
+  async function confirmArchive() {
+    if (!itemToArchive) return
+
+    const newArchivedState = !itemToArchive.is_archived
+
+    const { error } = await supabase.from("inventory").update({ is_archived: newArchivedState }).eq("id", itemToArchive.id)
 
     if (error) {
       console.error("[v0] Error archiving item:", error)
@@ -63,11 +82,11 @@ export function InventoryTable({
     }
 
     await supabase.from("inventory_logs").insert({
-      inventory_id: item.id,
+      inventory_id: itemToArchive.id,
       action_type: newArchivedState ? "archived" : "restored",
-      item_name: item.item_name,
-      previous_quantity: item.quantity,
-      new_quantity: item.quantity,
+      item_name: itemToArchive.item_name,
+      previous_quantity: itemToArchive.quantity,
+      new_quantity: itemToArchive.quantity,
       notes: newArchivedState ? "Item archived" : "Item restored from archive",
     })
 
@@ -76,6 +95,8 @@ export function InventoryTable({
       description: newArchivedState ? "Item archived successfully" : "Item restored successfully",
     })
 
+    setIsArchiveConfirmOpen(false)
+    setItemToArchive(null)
     onRefresh()
     onLogRefresh()
   }
@@ -139,7 +160,7 @@ export function InventoryTable({
           )}
         </div>
 
-        <div className="mt-4 grid gap-4 md:grid-cols-4">
+        <div className="mt-4 grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -200,78 +221,163 @@ export function InventoryTable({
               : "No items match your filters."}
           </p>
         ) : (
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Item Name</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Quantity</TableHead>
-                  <TableHead>Unit</TableHead>
-                  <TableHead>Location</TableHead>
-                  <TableHead>Status</TableHead>
-                  {isAdmin && <TableHead className="text-right">Actions</TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredItems.map((item) => {
-                  const status = getStockStatus(item)
-                  return (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-medium">{item.item_name}</TableCell>
-                      <TableCell>{item.category}</TableCell>
-                      <TableCell>{item.quantity}</TableCell>
-                      <TableCell>{item.unit}</TableCell>
-                      <TableCell>{item.location || "—"}</TableCell>
-                      <TableCell>
-                        <Badge className={status.className}>{status.label}</Badge>
-                      </TableCell>
-                      {isAdmin && (
-                        <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => onEdit(item)}>
-                                <Edit className="mr-2 h-4 w-4" />
-                                Edit
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => onStockAdjustment(item)}>
-                                {item.quantity > 0 ? (
-                                  <TrendingDown className="mr-2 h-4 w-4" />
-                                ) : (
-                                  <TrendingUp className="mr-2 h-4 w-4" />
-                                )}
-                                Adjust Stock
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleArchive(item)}>
-                                {item.is_archived ? (
-                                  <>
-                                    <ArchiveRestore className="mr-2 h-4 w-4" />
-                                    Restore
-                                  </>
-                                ) : (
-                                  <>
-                                    <Archive className="mr-2 h-4 w-4" />
-                                    Archive
-                                  </>
-                                )}
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+          <>
+            {/* Desktop Table View */}
+            <div className="hidden md:block rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Item Name</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Quantity</TableHead>
+                    <TableHead>Unit</TableHead>
+                    <TableHead>Location</TableHead>
+                    <TableHead>Status</TableHead>
+                    {isAdmin && <TableHead className="text-right">Actions</TableHead>}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredItems.map((item) => {
+                    const status = getStockStatus(item)
+                    return (
+                      <TableRow key={item.id}>
+                        <TableCell className="font-medium">{item.item_name}</TableCell>
+                        <TableCell>{item.category}</TableCell>
+                        <TableCell>{item.quantity}</TableCell>
+                        <TableCell>{item.unit}</TableCell>
+                        <TableCell>{item.location || "—"}</TableCell>
+                        <TableCell>
+                          <Badge className={status.className}>{status.label}</Badge>
                         </TableCell>
+                        {isAdmin && (
+                          <TableCell className="text-right">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => onEdit(item)}>
+                                  <Edit className="mr-2 h-4 w-4" />
+                                  Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => onStockAdjustment(item)}>
+                                  {item.quantity > 0 ? (
+                                    <TrendingDown className="mr-2 h-4 w-4" />
+                                  ) : (
+                                    <TrendingUp className="mr-2 h-4 w-4" />
+                                  )}
+                                  Adjust Stock
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleArchive(item)}>
+                                  {item.is_archived ? (
+                                    <>
+                                      <ArchiveRestore className="mr-2 h-4 w-4" />
+                                      Restore
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Archive className="mr-2 h-4 w-4" />
+                                      Archive
+                                    </>
+                                  )}
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="md:hidden space-y-4">
+              {filteredItems.map((item) => {
+                const status = getStockStatus(item)
+                return (
+                  <Card key={item.id} className="p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium text-lg truncate">{item.item_name}</h3>
+                        <p className="text-sm text-muted-foreground mt-1">{item.category}</p>
+                        <div className="flex items-center gap-4 mt-2 text-sm">
+                          <span className="font-medium">{item.quantity} {item.unit}</span>
+                          {item.location && <span className="text-muted-foreground">{item.location}</span>}
+                        </div>
+                        <div className="mt-2">
+                          <Badge className={status.className}>{status.label}</Badge>
+                        </div>
+                      </div>
+                      {isAdmin && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => onEdit(item)}>
+                              <Edit className="mr-2 h-4 w-4" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => onStockAdjustment(item)}>
+                              {item.quantity > 0 ? (
+                                <TrendingDown className="mr-2 h-4 w-4" />
+                              ) : (
+                                <TrendingUp className="mr-2 h-4 w-4" />
+                              )}
+                              Adjust Stock
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleArchive(item)}>
+                              {item.is_archived ? (
+                                <>
+                                  <ArchiveRestore className="mr-2 h-4 w-4" />
+                                  Restore
+                                </>
+                              ) : (
+                                <>
+                                  <Archive className="mr-2 h-4 w-4" />
+                                  Archive
+                                </>
+                              )}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       )}
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          </div>
+                    </div>
+                  </Card>
+                )
+              })}
+            </div>
+          </>
         )}
       </CardContent>
+
+      {/* Archive confirmation dialog */}
+      <AlertDialog open={isArchiveConfirmOpen} onOpenChange={setIsArchiveConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {itemToArchive?.is_archived ? "Restore item?" : "Archive item?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {itemToArchive?.is_archived
+                ? `Are you sure you want to restore "${itemToArchive.item_name}"? This will make it visible in the active inventory.`
+                : `Are you sure you want to archive "${itemToArchive?.item_name}"? This will hide it from the active inventory but preserve all data.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmArchive}>
+              {itemToArchive?.is_archived ? "Restore" : "Archive"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   )
 }

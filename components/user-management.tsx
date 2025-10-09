@@ -82,7 +82,8 @@ export function UserManagement() {
         </div>
       </CardHeader>
       <CardContent>
-        <div className="rounded-md border">
+        {/* Desktop Table View */}
+        <div className="hidden md:block rounded-md border">
           <Table>
             <TableHeader>
               <TableRow>
@@ -123,20 +124,42 @@ export function UserManagement() {
           </Table>
         </div>
 
+        {/* Mobile Card View */}
+        <div className="md:hidden space-y-4">
+          {users.map((user) => (
+            <Card key={user.id} className="p-4">
+              <div className="space-y-3">
+                <div>
+                  <h3 className="font-medium text-lg">{user.email}</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Joined {new Date(user.created_at).toLocaleDateString()}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant={user.role === "admin" ? "default" : "secondary"}>
+                    <Shield className="mr-1 h-3 w-3" />
+                    {user.role.toUpperCase()}
+                  </Badge>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+
         <div className="mt-6 rounded-lg border bg-muted/50 p-4">
           <h3 className="font-semibold mb-2">Role Permissions</h3>
-          <div className="space-y-2 text-sm text-muted-foreground">
-            <div className="flex items-start gap-2">
-              <Badge variant="default" className="mt-0.5">
+          <div className="space-y-3 text-sm text-muted-foreground">
+            <div className="flex flex-col sm:flex-row sm:items-start gap-2">
+              <Badge variant="default" className="w-fit">
                 ADMIN
               </Badge>
-              <p>Full access: Create, Read, Update, Archive items. Manage users and view all logs.</p>
+              <p className="flex-1">Full access: Create, Read, Update, Archive items. Manage users and view all logs.</p>
             </div>
-            <div className="flex items-start gap-2">
-              <Badge variant="secondary" className="mt-0.5">
+            <div className="flex flex-col sm:flex-row sm:items-start gap-2">
+              <Badge variant="secondary" className="w-fit">
                 STAFF
               </Badge>
-              <p>Read-only access: View inventory items and activity logs only.</p>
+              <p className="flex-1">Read-only access: View inventory items and activity logs only.</p>
             </div>
           </div>
         </div>

@@ -19,6 +19,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "AcadKeeper",
   description: "Manage your school supplies inventory with comprehensive tracking",
+  viewport: "width=device-width, initial-scale=1",
 }
 
 export default function RootLayout({

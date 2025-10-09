@@ -181,37 +181,67 @@ export const ActivityLog: React.FC<ActivityLogProps> = ({ logs, range, onRangeCh
         {logs.length === 0 ? (
           <p className="text-center text-muted-foreground py-8">No activity recorded yet.</p>
         ) : (
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date & Time</TableHead>
-                  <TableHead>Action</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Notes</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {grouped.map((group) => (
-                  <React.Fragment key={`grp-${group.label}`}>
-                    <TableRow>
-                      <TableCell colSpan={4} className="bg-muted/60 text-muted-foreground font-medium">
-                        {formatDaySeparator(group.items[0].created_at)}
-                      </TableCell>
-                    </TableRow>
-                    {group.items.map((log) => (
-                      <TableRow key={log.id}>
-                        <TableCell className="text-muted-foreground">{formatDate(log.created_at)}</TableCell>
-                        <TableCell>{getActionBadge(log.action_type)}</TableCell>
-                        <TableCell>{getLogDescription(log)}</TableCell>
-                        <TableCell className="text-muted-foreground">{log.notes || "—"}</TableCell>
+          <>
+            {/* Desktop Table View */}
+            <div className="hidden md:block rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date & Time</TableHead>
+                    <TableHead>Action</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Notes</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {grouped.map((group) => (
+                    <React.Fragment key={`grp-${group.label}`}>
+                      <TableRow>
+                        <TableCell colSpan={4} className="bg-muted/60 text-muted-foreground font-medium">
+                          {formatDaySeparator(group.items[0].created_at)}
+                        </TableCell>
                       </TableRow>
-                    ))}
-                  </React.Fragment>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                      {group.items.map((log) => (
+                        <TableRow key={log.id}>
+                          <TableCell className="text-muted-foreground">{formatDate(log.created_at)}</TableCell>
+                          <TableCell>{getActionBadge(log.action_type)}</TableCell>
+                          <TableCell>{getLogDescription(log)}</TableCell>
+                          <TableCell className="text-muted-foreground">{log.notes || "—"}</TableCell>
+                        </TableRow>
+                      ))}
+                    </React.Fragment>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="md:hidden space-y-4">
+              {grouped.map((group) => (
+                <div key={`grp-${group.label}`} className="space-y-3">
+                  <div className="bg-muted/60 text-muted-foreground font-medium p-3 rounded-lg">
+                    {formatDaySeparator(group.items[0].created_at)}
+                  </div>
+                  {group.items.map((log) => (
+                    <Card key={log.id} className="p-4">
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">{formatDate(log.created_at)}</span>
+                          {getActionBadge(log.action_type)}
+                        </div>
+                        <p className="text-sm">{getLogDescription(log)}</p>
+                        {log.notes && (
+                          <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
+                            {log.notes}
+                          </p>
+                        )}
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </CardContent>
     </Card>

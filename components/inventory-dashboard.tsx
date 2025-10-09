@@ -126,16 +126,16 @@ export function InventoryDashboard() {
       <SidebarNav activeView={activeView} onViewChange={setActiveView} />
 
       <div className="flex-1 md:ml-64">
-        <div className="container mx-auto p-6 space-y-6">
+        <div className="container mx-auto p-4 md:p-6 space-y-6">
           <LowStockAlert />
 
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h1 className="text-4xl font-bold text-balance">AcadKeeper Inventory</h1>
+              <h1 className="text-2xl sm:text-4xl font-bold text-balance">AcadKeeper Inventory</h1>
               <p className="text-muted-foreground mt-2">Manage your school supplies with comprehensive tracking</p>
             </div>
             {activeView === "inventory" && isAdmin && (
-              <Button onClick={() => setIsFormOpen(true)} size="lg">
+              <Button onClick={() => setIsFormOpen(true)} size="lg" className="w-full sm:w-auto">
                 <Plus className="mr-2 h-5 w-5" />
                 Add Item
               </Button>
@@ -170,7 +170,7 @@ export function InventoryDashboard() {
           )}
 
           <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-            <DialogContent className={`max-w-2xl ${isFormMasked ? "invisible pointer-events-none" : ""}`}>
+            <DialogContent className={`max-w-2xl max-h-[90vh] overflow-y-auto ${isFormMasked ? "invisible pointer-events-none" : ""}`}>
               <DialogHeader>
                 <DialogTitle>{editingItem ? "Edit Item" : "Add New Item"}</DialogTitle>
               </DialogHeader>
