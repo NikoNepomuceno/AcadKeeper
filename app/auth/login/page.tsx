@@ -11,6 +11,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { useToast } from "@/hooks/use-toast"
+import { useLoading } from "@/components/loading-provider"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -18,6 +19,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
+  const { setIsLoading: setGlobalLoading } = useLoading()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -37,6 +39,8 @@ export default function LoginPage() {
         description: "Logged in successfully!",
       })
 
+      // Show global loading overlay while navigating to dashboard
+      setGlobalLoading(true)
       router.push("/")
       router.refresh()
     } catch (error: unknown) {

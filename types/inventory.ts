@@ -31,12 +31,12 @@ export interface UserProfile {
   id: string
   user_id: string
   email: string
-  role: "admin" | "staff"
+  role: "superAdmin" | "admin" | "staff"
   created_at: string
   updated_at: string
 }
 
-export type UserRole = "admin" | "staff"
+export type UserRole = "superAdmin" | "admin" | "staff"
 
 export interface StockoutRequest {
   id: string

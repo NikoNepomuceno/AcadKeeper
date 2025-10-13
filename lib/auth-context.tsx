@@ -11,6 +11,7 @@ interface AuthContextType {
   user: User | null
   profile: UserProfile | null
   role: UserRole | null
+  isSuperAdmin: boolean
   isAdmin: boolean
   isStaff: boolean
   loading: boolean
@@ -21,6 +22,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   profile: null,
   role: null,
+  isSuperAdmin: false,
   isAdmin: false,
   isStaff: false,
   loading: true,
@@ -92,11 +94,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const role = profile?.role ?? null
+  const isSuperAdmin = role === "superAdmin"
   const isAdmin = role === "admin"
   const isStaff = role === "staff"
 
   return (
-    <AuthContext.Provider value={{ user, profile, role, isAdmin, isStaff, loading, refreshProfile }}>
+    <AuthContext.Provider value={{ user, profile, role, isSuperAdmin, isAdmin, isStaff, loading, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   )

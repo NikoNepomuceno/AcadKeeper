@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
 import type { UserProfile } from "@/types/inventory"
+import { useAuth } from "@/lib/auth-context"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
@@ -15,6 +16,7 @@ export function UserManagement() {
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
   const { toast } = useToast()
+  const { isSuperAdmin } = useAuth()
 
   useEffect(() => {
     fetchUsers()
@@ -38,6 +40,10 @@ export function UserManagement() {
   }
 
   async function updateUserRole(userId: string, newRole: "admin" | "staff") {
+    if (!isSuperAdmin) {
+      toast({ title: "Forbidden", description: "Only super admin can change roles", variant: "destructive" })
+      return
+    }
     const { error } = await supabase.from("user_profiles").update({ role: newRole }).eq("user_id", userId)
 
     if (error) {

@@ -1,21 +1,37 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import dynamic from "next/dynamic"
 import { createClient } from "@/lib/supabase/client"
 import type { InventoryItem, InventoryLog } from "@/types/inventory"
 import { InventoryTable } from "@/components/inventory-table"
-import { InventoryForm } from "@/components/inventory-form"
-import { ActivityLog } from "@/components/activity-log"
-import { StockAdjustment } from "@/components/stock-adjustment"
 import { Approvals } from "@/components/stockout-approvals"
 import { SidebarNav } from "@/components/sidebar-nav"
-import { DashboardStats } from "@/components/dashboard-stats"
 import { LowStockAlert } from "@/components/low-stock-alert"
-import { UserManagement } from "@/components/user-management"
 import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useAuth } from "@/lib/auth-context"
+import { useLoading } from "@/components/loading-provider"
+
+// Defer heavy client components until needed
+const DashboardStats = dynamic(() => import("@/components/dashboard-stats").then((m) => m.DashboardStats), {
+  ssr: false,
+  loading: () => (
+    <div className="h-[320px] rounded-md border flex items-center justify-center text-muted-foreground">
+      Loading dashboard...
+    </div>
+  ),
+})
+
+const InventoryForm = dynamic(() => import("@/components/inventory-form").then((m) => m.InventoryForm), { ssr: false })
+const StockAdjustment = dynamic(() => import("@/components/stock-adjustment").then((m) => m.StockAdjustment), {
+  ssr: false,
+})
+const ActivityLog = dynamic(() => import("@/components/activity-log").then((m) => m.ActivityLog), { ssr: false })
+const UserManagement = dynamic(() => import("@/components/user-management").then((m) => m.UserManagement), {
+  ssr: false,
+})
 
 export function InventoryDashboard() {
   type LogRange = "day" | "week" | "month" | "year"
@@ -31,6 +47,7 @@ export function InventoryDashboard() {
   const { isAdmin } = useAuth()
   const [isFormMasked, setIsFormMasked] = useState(false)
   const [logRange, setLogRange] = useState<LogRange>("week")
+  const { setIsLoading } = useLoading()
 
   const supabase = createClient()
 
@@ -38,6 +55,11 @@ export function InventoryDashboard() {
     fetchItems()
     fetchLogs()
   }, [showArchived, logRange])
+
+  // Clear any global loading overlay once the dashboard shell mounts
+  useEffect(() => {
+    setIsLoading(false)
+  }, [])
 
   async function fetchItems() {
     setLoading(true)
@@ -171,6 +193,12 @@ export function InventoryDashboard() {
           {activeView === "analytics" && (
             <div className="text-center py-12">
               <p className="text-muted-foreground">Analytics view coming soon...</p>
+            </div>
+          )}
+
+          {activeView === "superadmin" && isAdmin && (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">Open the Super Admin page from the sidebar link.</p>
             </div>
           )}
 

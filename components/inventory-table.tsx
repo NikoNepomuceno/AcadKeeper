@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useDeferredValue, useMemo, useState } from "react"
 import type { InventoryItem } from "@/types/inventory"
 import { createClient } from "@/lib/supabase/client"
 import { CATEGORIES } from "@/lib/constants"
@@ -59,6 +59,9 @@ export function InventoryTable({
   const { toast } = useToast()
   const { isAdmin } = useAuth()
 
+  // Defer the search value to keep typing responsive on large lists
+  const deferredSearch = useDeferredValue(searchQuery)
+
   function handleArchive(item: InventoryItem) {
     setItemToArchive(item)
     setIsArchiveConfirmOpen(true)
@@ -112,28 +115,33 @@ export function InventoryTable({
     return { label: "In Stock", className: "bg-green-600 text-white hover:bg-green-700" }
   }
 
-  const uniqueLocations = Array.from(new Set(items.map((item) => item.location).filter(Boolean)))
+  const uniqueLocations = useMemo(() => {
+    return Array.from(new Set(items.map((item) => item.location).filter(Boolean)))
+  }, [items])
 
-  const filteredItems = items.filter((item) => {
-    const matchesSearch =
-      item.item_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.category.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredItems = useMemo(() => {
+    const searchLower = deferredSearch.toLowerCase()
+    return items.filter((item) => {
+      const matchesSearch =
+        item.item_name.toLowerCase().includes(searchLower) ||
+        item.category.toLowerCase().includes(searchLower)
 
-    const matchesCategory = categoryFilter === "all" || item.category === categoryFilter
+      const matchesCategory = categoryFilter === "all" || item.category === categoryFilter
 
-    const matchesStatus =
-      statusFilter === "all" ||
-      (statusFilter === "out" && item.quantity === 0) ||
-      (statusFilter === "low" && item.quantity > 0 && item.quantity <= item.minimum_stock) ||
-      (statusFilter === "running-low" &&
-        item.quantity > item.minimum_stock &&
-        item.quantity <= item.minimum_stock * 1.5) ||
-      (statusFilter === "in-stock" && item.quantity > item.minimum_stock * 1.5)
+      const matchesStatus =
+        statusFilter === "all" ||
+        (statusFilter === "out" && item.quantity === 0) ||
+        (statusFilter === "low" && item.quantity > 0 && item.quantity <= item.minimum_stock) ||
+        (statusFilter === "running-low" &&
+          item.quantity > item.minimum_stock &&
+          item.quantity <= item.minimum_stock * 1.5) ||
+        (statusFilter === "in-stock" && item.quantity > item.minimum_stock * 1.5)
 
-    const matchesLocation = locationFilter === "all" || item.location === locationFilter
+      const matchesLocation = locationFilter === "all" || item.location === locationFilter
 
-    return matchesSearch && matchesCategory && matchesStatus && matchesLocation
-  })
+      return matchesSearch && matchesCategory && matchesStatus && matchesLocation
+    })
+  }, [items, deferredSearch, categoryFilter, statusFilter, locationFilter])
 
   if (loading) {
     return (

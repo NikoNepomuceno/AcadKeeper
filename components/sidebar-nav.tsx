@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { LayoutDashboard, Package, History, BarChart3, Menu, X, LogOut, Users, Shield } from "lucide-react"
+import { LayoutDashboard, Package, History, BarChart3, Menu, X, LogOut, Users, Shield, Crown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
@@ -32,13 +32,14 @@ export function SidebarNav({ activeView, onViewChange }: SidebarNavProps) {
   const [isLogoutOpen, setIsLogoutOpen] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
-  const { profile, isAdmin } = useAuth()
+  const { profile, isAdmin, isSuperAdmin } = useAuth()
 
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "inventory", label: "Inventory", icon: Package },
     { id: "logs", label: "Activity Log", icon: History },
     { id: "analytics", label: "Analytics", icon: BarChart3 },
+    ...(isSuperAdmin ? [{ id: "superadmin", label: "Super Admin", icon: Crown }] : []),
     ...(isAdmin
       ? [
           { id: "approvals", label: "Approvals", icon: Shield },
@@ -137,7 +138,7 @@ export function SidebarNav({ activeView, onViewChange }: SidebarNavProps) {
               <AlertDialogTrigger asChild>
                 <Button
                   variant="ghost"
-                  className="w-full justify-start text-destructive hover:text-destructive"
+                  className="w-full justify-start bg-red-100 text-red-600 hover:bg-red-200 hover:text-red-700 text-destructive hover:text-destructive"
                   disabled={isLoggingOut}
                 >
                   <LogOut className="mr-2 h-4 w-4" />
