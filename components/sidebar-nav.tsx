@@ -39,7 +39,12 @@ export function SidebarNav({ activeView, onViewChange }: SidebarNavProps) {
     { id: "inventory", label: "Inventory", icon: Package },
     { id: "logs", label: "Activity Log", icon: History },
     { id: "analytics", label: "Analytics", icon: BarChart3 },
-    ...(isAdmin ? [{ id: "users", label: "User Management", icon: Users }] : []),
+    ...(isAdmin
+      ? [
+          { id: "approvals", label: "Approvals", icon: Shield },
+          { id: "users", label: "User Management", icon: Users },
+        ]
+      : []),
   ]
 
   const handleLogout = async () => {

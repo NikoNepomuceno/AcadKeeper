@@ -37,3 +37,16 @@ export interface UserProfile {
 }
 
 export type UserRole = "admin" | "staff"
+
+export interface StockoutRequest {
+  id: string
+  inventory_id: string
+  requested_by: string
+  quantity: number
+  notes: string | null
+  status: "pending" | "approved" | "denied"
+  approved_by: string | null
+  decision_notes: string | null
+  created_at: string
+  updated_at: string
+}

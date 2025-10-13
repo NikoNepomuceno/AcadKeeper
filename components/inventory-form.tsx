@@ -100,8 +100,48 @@ export function InventoryForm({ item, onSuccess, onCancel, onConfirmDialogOpenCh
       return
     }
 
+    // Basic semantic validation: prevent obviously wrong name/category combos
+    const itemNameTrimmed = formData.item_name.trim()
+    if (
+      itemNameTrimmed.toLowerCase() === "paper" &&
+      formData.category !== "Paper Products"
+    ) {
+      toast({
+        title: "Invalid category",
+        description: "Item 'Paper' must be under 'Paper Products' category.",
+        variant: "destructive",
+      })
+      return
+    }
+
     setLoading(true)
     try {
+      // Duplicate prevention: do not create if an item with same name+category exists (case-insensitive)
+      {
+        const { data: existingItem, error: existingError } = await supabase
+          .from("inventory")
+          .select("id")
+          .ilike("item_name", itemNameTrimmed)
+          .eq("category", formData.category)
+          .eq("is_archived", false)
+          .maybeSingle()
+
+        if (existingError && existingError.code !== "PGRST116") {
+          // Unexpected error (ignore no rows error PGRST116 coming from maybeSingle)
+          throw existingError
+        }
+
+        if (existingItem) {
+          toast({
+            title: "Duplicate item",
+            description: "An item with the same name and category already exists.",
+            variant: "destructive",
+          })
+          setLoading(false)
+          return
+        }
+      }
+
       const { data, error } = await supabase.from("inventory").insert([formData]).select().single()
 
       if (error) throw error
@@ -134,8 +174,46 @@ export function InventoryForm({ item, onSuccess, onCancel, onConfirmDialogOpenCh
 
   async function confirmSave() {
     if (!item) return
+    // Basic semantic validation: prevent obviously wrong name/category combos
+    const itemNameTrimmed = formData.item_name.trim()
+    if (
+      itemNameTrimmed.toLowerCase() === "paper" &&
+      formData.category !== "Paper Products"
+    ) {
+      toast({
+        title: "Invalid category",
+        description: "Item 'Paper' must be under 'Paper Products' category.",
+        variant: "destructive",
+      })
+      setIsConfirmSaveOpen(false)
+      return
+    }
     setLoading(true)
     try {
+      // Duplicate prevention on update: block if another item (different id) has same name+category
+      {
+        const { data: conflictItems, error: conflictError } = await supabase
+          .from("inventory")
+          .select("id")
+          .ilike("item_name", itemNameTrimmed)
+          .eq("category", formData.category)
+          .eq("is_archived", false)
+
+        if (conflictError) throw conflictError
+
+        const hasConflict = (conflictItems || []).some((row) => row.id !== item.id)
+        if (hasConflict) {
+          toast({
+            title: "Duplicate item",
+            description: "Another item with the same name and category already exists.",
+            variant: "destructive",
+          })
+          setLoading(false)
+          setIsConfirmSaveOpen(false)
+          return
+        }
+      }
+
       const { error } = await supabase.from("inventory").update(formData).eq("id", item.id)
 
       if (error) throw error

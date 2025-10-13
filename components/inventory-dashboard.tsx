@@ -7,6 +7,7 @@ import { InventoryTable } from "@/components/inventory-table"
 import { InventoryForm } from "@/components/inventory-form"
 import { ActivityLog } from "@/components/activity-log"
 import { StockAdjustment } from "@/components/stock-adjustment"
+import { Approvals } from "@/components/stockout-approvals"
 import { SidebarNav } from "@/components/sidebar-nav"
 import { DashboardStats } from "@/components/dashboard-stats"
 import { LowStockAlert } from "@/components/low-stock-alert"
@@ -159,6 +160,10 @@ export function InventoryDashboard() {
 
           {activeView === "logs" && (
             <ActivityLog {...({ logs, range: logRange, onRangeChange: setLogRange } as any)} />
+          )}
+
+          {activeView === "approvals" && isAdmin && (
+            <Approvals onApproved={async () => { await fetchItems(); await fetchLogs(); }} />
           )}
 
           {activeView === "users" && isAdmin && <UserManagement />}

@@ -233,7 +233,7 @@ export function InventoryTable({
                     <TableHead>Unit</TableHead>
                     <TableHead>Location</TableHead>
                     <TableHead>Status</TableHead>
-                    {isAdmin && <TableHead className="text-right">Actions</TableHead>}
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -249,44 +249,53 @@ export function InventoryTable({
                         <TableCell>
                           <Badge className={status.className}>{status.label}</Badge>
                         </TableCell>
-                        {isAdmin && (
-                          <TableCell className="text-right">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon">
-                                  <MoreVertical className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => onEdit(item)}>
-                                  <Edit className="mr-2 h-4 w-4" />
-                                  Edit
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => onStockAdjustment(item)}>
-                                  {item.quantity > 0 ? (
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              {isAdmin ? (
+                                <>
+                                  <DropdownMenuItem onClick={() => onEdit(item)}>
+                                    <Edit className="mr-2 h-4 w-4" />
+                                    Edit
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => onStockAdjustment(item)}>
+                                    {item.quantity > 0 ? (
+                                      <TrendingDown className="mr-2 h-4 w-4" />
+                                    ) : (
+                                      <TrendingUp className="mr-2 h-4 w-4" />
+                                    )}
+                                    Adjust Stock
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleArchive(item)}>
+                                    {item.is_archived ? (
+                                      <>
+                                        <ArchiveRestore className="mr-2 h-4 w-4" />
+                                        Restore
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Archive className="mr-2 h-4 w-4" />
+                                        Archive
+                                      </>
+                                    )}
+                                  </DropdownMenuItem>
+                                </>
+                              ) : (
+                                <>
+                                  <DropdownMenuItem onClick={() => onStockAdjustment(item)}>
                                     <TrendingDown className="mr-2 h-4 w-4" />
-                                  ) : (
-                                    <TrendingUp className="mr-2 h-4 w-4" />
-                                  )}
-                                  Adjust Stock
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleArchive(item)}>
-                                  {item.is_archived ? (
-                                    <>
-                                      <ArchiveRestore className="mr-2 h-4 w-4" />
-                                      Restore
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Archive className="mr-2 h-4 w-4" />
-                                      Archive
-                                    </>
-                                  )}
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                        )}
+                                    Request Stock-Out
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
                       </TableRow>
                     )
                   })}
@@ -312,42 +321,51 @@ export function InventoryTable({
                           <Badge className={status.className}>{status.label}</Badge>
                         </div>
                       </div>
-                      {isAdmin && (
-                        <DropdownMenu>
+                      <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon">
                               <MoreVertical className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => onEdit(item)}>
-                              <Edit className="mr-2 h-4 w-4" />
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => onStockAdjustment(item)}>
-                              {item.quantity > 0 ? (
+                          {isAdmin ? (
+                            <>
+                              <DropdownMenuItem onClick={() => onEdit(item)}>
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => onStockAdjustment(item)}>
+                                {item.quantity > 0 ? (
+                                  <TrendingDown className="mr-2 h-4 w-4" />
+                                ) : (
+                                  <TrendingUp className="mr-2 h-4 w-4" />
+                                )}
+                                Adjust Stock
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleArchive(item)}>
+                                {item.is_archived ? (
+                                  <>
+                                    <ArchiveRestore className="mr-2 h-4 w-4" />
+                                    Restore
+                                  </>
+                                ) : (
+                                  <>
+                                    <Archive className="mr-2 h-4 w-4" />
+                                    Archive
+                                  </>
+                                )}
+                              </DropdownMenuItem>
+                            </>
+                          ) : (
+                            <>
+                              <DropdownMenuItem onClick={() => onStockAdjustment(item)}>
                                 <TrendingDown className="mr-2 h-4 w-4" />
-                              ) : (
-                                <TrendingUp className="mr-2 h-4 w-4" />
-                              )}
-                              Adjust Stock
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleArchive(item)}>
-                              {item.is_archived ? (
-                                <>
-                                  <ArchiveRestore className="mr-2 h-4 w-4" />
-                                  Restore
-                                </>
-                              ) : (
-                                <>
-                                  <Archive className="mr-2 h-4 w-4" />
-                                  Archive
-                                </>
-                              )}
-                            </DropdownMenuItem>
+                                Request Stock-Out
+                              </DropdownMenuItem>
+                            </>
+                          )}
                           </DropdownMenuContent>
-                        </DropdownMenu>
-                      )}
+                      </DropdownMenu>
                     </div>
                   </Card>
                 )

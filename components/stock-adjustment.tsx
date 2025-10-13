@@ -13,6 +13,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Card, CardContent } from "@/components/ui/card"
 import { TrendingUp, TrendingDown, Package } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { useAuth } from "@/lib/auth-context"
 
 interface StockAdjustmentProps {
   item: InventoryItem
@@ -28,34 +29,47 @@ export function StockAdjustment({ item, onSuccess, onCancel }: StockAdjustmentPr
 
   const supabase = createClient()
   const { toast } = useToast()
+  const { isAdmin } = useAuth()
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
 
     try {
-      const quantityChange = adjustmentType === "in" ? quantity : -quantity
-      const newQuantity = item.quantity + quantityChange
-
-      if (newQuantity < 0) {
-        toast({
-          title: "Error",
-          description: "Cannot reduce stock below 0",
-          variant: "destructive",
+      if (!isAdmin) {
+        // Staff path: only allow Stock Out via request creation
+        if (adjustmentType !== "out") {
+          toast({
+            title: "Not allowed",
+            description: "Staff can only request Stock Out.",
+            variant: "destructive",
+          })
+          setLoading(false)
+          return
+        }
+        // Create a stock-out request
+        const { error: reqError } = await supabase.from("stockout_requests").insert({
+          inventory_id: item.id,
+          requested_by: (await supabase.auth.getUser()).data.user?.id,
+          quantity,
+          notes: notes || null,
         })
-        setLoading(false)
+        if (reqError) throw reqError
+        toast({ title: "Request submitted", description: "Waiting for admin approval." })
+        onSuccess()
         return
       }
 
-      // Update inventory quantity
-      const { error: updateError } = await supabase
-        .from("inventory")
-        .update({ quantity: newQuantity })
-        .eq("id", item.id)
-
+      // Admin path: immediate adjust (in or out)
+      const quantityChange = adjustmentType === "in" ? quantity : -quantity
+      const newQuantity = item.quantity + quantityChange
+      if (newQuantity < 0) {
+        toast({ title: "Error", description: "Cannot reduce stock below 0", variant: "destructive" })
+        setLoading(false)
+        return
+      }
+      const { error: updateError } = await supabase.from("inventory").update({ quantity: newQuantity }).eq("id", item.id)
       if (updateError) throw updateError
-
-      // Log the stock adjustment
       const { error: logError } = await supabase.from("inventory_logs").insert({
         inventory_id: item.id,
         action_type: adjustmentType === "in" ? "stock_in" : "stock_out",
@@ -65,14 +79,8 @@ export function StockAdjustment({ item, onSuccess, onCancel }: StockAdjustmentPr
         quantity_change: quantityChange,
         notes: notes || `Stock ${adjustmentType === "in" ? "added" : "removed"}`,
       })
-
       if (logError) throw logError
-
-      toast({
-        title: "Success",
-        description: `Stock ${adjustmentType === "in" ? "added" : "removed"} successfully`,
-      })
-
+      toast({ title: "Success", description: `Stock ${adjustmentType === "in" ? "added" : "removed"} successfully` })
       onSuccess()
     } catch (error) {
       console.error("[v0] Error adjusting stock:", error)
@@ -150,7 +158,7 @@ export function StockAdjustment({ item, onSuccess, onCancel }: StockAdjustmentPr
           />
         </div>
 
-        {quantity > 0 && (
+        {quantity > 0 && isAdmin && (
           <Card className="bg-muted">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
@@ -183,8 +191,12 @@ export function StockAdjustment({ item, onSuccess, onCancel }: StockAdjustmentPr
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>
-        <Button type="submit" disabled={loading || quantity <= 0 || newQuantity < 0}>
-          {loading ? "Processing..." : "Confirm Adjustment"}
+        <Button type="submit" disabled={loading || quantity <= 0 || (!isAdmin && adjustmentType !== "out") || (isAdmin && newQuantity < 0)}>
+          {loading
+            ? "Processing..."
+            : isAdmin
+            ? "Confirm Adjustment"
+            : "Submit Stock-Out Request"}
         </Button>
       </div>
     </form>
