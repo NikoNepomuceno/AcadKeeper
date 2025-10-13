@@ -22,14 +22,15 @@ interface StockAdjustmentProps {
 }
 
 export function StockAdjustment({ item, onSuccess, onCancel }: StockAdjustmentProps) {
-  const [adjustmentType, setAdjustmentType] = useState<"in" | "out">("in")
-  const [quantity, setQuantity] = useState<number>(0)
-  const [notes, setNotes] = useState("")
-  const [loading, setLoading] = useState(false)
-
   const supabase = createClient()
   const { toast } = useToast()
   const { isAdmin } = useAuth()
+
+  // Default staff to stock-out only; admins can choose
+  const [adjustmentType, setAdjustmentType] = useState<"in" | "out">(isAdmin ? "in" : "out")
+  const [quantity, setQuantity] = useState<number>(0)
+  const [notes, setNotes] = useState("")
+  const [loading, setLoading] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -44,6 +45,17 @@ export function StockAdjustment({ item, onSuccess, onCancel }: StockAdjustmentPr
             description: "Staff can only request Stock Out.",
             variant: "destructive",
           })
+          setLoading(false)
+          return
+        }
+        // Validate quantity does not exceed available and item not out of stock
+        if (item.quantity <= 0) {
+          toast({ title: "Out of stock", description: "This item is currently out of stock.", variant: "destructive" })
+          setLoading(false)
+          return
+        }
+        if (quantity > item.quantity) {
+          toast({ title: "Invalid quantity", description: "Requested quantity exceeds available stock.", variant: "destructive" })
           setLoading(false)
           return
         }
@@ -95,6 +107,8 @@ export function StockAdjustment({ item, onSuccess, onCancel }: StockAdjustmentPr
   }
 
   const newQuantity = adjustmentType === "in" ? item.quantity + quantity : item.quantity - quantity
+  const isOutOfStock = item.quantity <= 0
+  const exceedsStock = quantity > item.quantity
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -121,17 +135,19 @@ export function StockAdjustment({ item, onSuccess, onCancel }: StockAdjustmentPr
       <div className="space-y-4">
         <div className="space-y-3">
           <Label>Adjustment Type</Label>
-          <RadioGroup value={adjustmentType} onValueChange={(value) => setAdjustmentType(value as "in" | "out")}>
-            <div className="flex items-center space-x-2 rounded-lg border p-4 cursor-pointer hover:bg-accent">
-              <RadioGroupItem value="in" id="stock-in" />
-              <Label htmlFor="stock-in" className="flex items-center gap-2 cursor-pointer flex-1">
-                <TrendingUp className="h-4 w-4 text-green-600" />
-                <div>
-                  <p className="font-medium">Stock In</p>
-                  <p className="text-sm text-muted-foreground">Add items to inventory</p>
-                </div>
-              </Label>
-            </div>
+          <RadioGroup value={adjustmentType} onValueChange={(value) => setAdjustmentType(value as "in" | "out")}> 
+            {isAdmin && (
+              <div className="flex items-center space-x-2 rounded-lg border p-4 cursor-pointer hover:bg-accent">
+                <RadioGroupItem value="in" id="stock-in" />
+                <Label htmlFor="stock-in" className="flex items-center gap-2 cursor-pointer flex-1">
+                  <TrendingUp className="h-4 w-4 text-green-600" />
+                  <div>
+                    <p className="font-medium">Stock In</p>
+                    <p className="text-sm text-muted-foreground">Add items to inventory</p>
+                  </div>
+                </Label>
+              </div>
+            )}
             <div className="flex items-center space-x-2 rounded-lg border p-4 cursor-pointer hover:bg-accent">
               <RadioGroupItem value="out" id="stock-out" />
               <Label htmlFor="stock-out" className="flex items-center gap-2 cursor-pointer flex-1">
@@ -174,6 +190,16 @@ export function StockAdjustment({ item, onSuccess, onCancel }: StockAdjustmentPr
             </CardContent>
           </Card>
         )}
+        {!isAdmin && quantity > 0 && (
+          <Card className="bg-muted">
+            <CardContent className="pt-6">
+              {isOutOfStock && <p className="text-sm text-destructive">Item is out of stock</p>}
+              {exceedsStock && !isOutOfStock && (
+                <p className="text-sm text-destructive">Requested quantity exceeds available stock ({item.quantity} {item.unit})</p>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         <div className="space-y-2">
           <Label htmlFor="notes">Notes</Label>
@@ -191,7 +217,12 @@ export function StockAdjustment({ item, onSuccess, onCancel }: StockAdjustmentPr
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>
-        <Button type="submit" disabled={loading || quantity <= 0 || (!isAdmin && adjustmentType !== "out") || (isAdmin && newQuantity < 0)}>
+        <Button type="submit" disabled={
+          loading ||
+          quantity <= 0 ||
+          (!isAdmin && (adjustmentType !== "out" || isOutOfStock || exceedsStock)) ||
+          (isAdmin && newQuantity < 0)
+        }>
           {loading
             ? "Processing..."
             : isAdmin
