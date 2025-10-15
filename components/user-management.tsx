@@ -7,15 +7,20 @@ import { useAuth } from "@/lib/auth-context"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast"
-import { Shield, UserCog } from "lucide-react"
+import { Shield, UserCog, Menu } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
 export function UserManagement() {
   const [users, setUsers] = useState<UserProfile[]>([])
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState("")
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [confirmText, setConfirmText] = useState("")
+  const [targetUserForSuspend, setTargetUserForSuspend] = useState<{ id: string; email: string } | null>(null)
   const supabase = createClient()
   const { toast } = useToast()
   const { isSuperAdmin } = useAuth()
@@ -26,7 +31,10 @@ export function UserManagement() {
 
   async function fetchUsers() {
     setLoading(true)
-    const { data, error } = await supabase.from("user_profiles").select("*").order("created_at", { ascending: false })
+    const { data, error } = await supabase
+      .from("user_profiles")
+      .select("*")
+      .order("created_at", { ascending: false })
 
     if (error) {
       console.error("[v0] Error fetching users:", error)
@@ -39,6 +47,32 @@ export function UserManagement() {
       setUsers(data || [])
     }
     setLoading(false)
+  }
+
+  async function toggleUserStatus(userId: string, currentStatus: "Active" | "Suspended") {
+    if (!isSuperAdmin) {
+      toast({ title: "Forbidden", description: "Only super admin can change status", variant: "destructive" })
+      return
+    }
+    const newStatus = currentStatus === "Active" ? "Suspended" : "Active"
+    const res = await fetch("/api/superadmin/update-user-status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, status: newStatus }),
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      toast({ title: "Error", description: body?.error || "Failed to update status", variant: "destructive" })
+      return
+    }
+    toast({ title: "Success", description: `User ${newStatus.toLowerCase()}` })
+    fetchUsers()
+  }
+
+  function requestSuspend(userId: string, email: string) {
+    setTargetUserForSuspend({ id: userId, email })
+    setConfirmText("")
+    setConfirmOpen(true)
   }
 
   async function updateUserRole(userId: string, newRole: "admin" | "staff") {
@@ -68,11 +102,17 @@ export function UserManagement() {
 
   const filteredUsers = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q) return users
-    return users.filter((u) => {
+    const base = !q
+      ? users
+      : users.filter((u) => {
       const email = (u.email || "").toLowerCase()
       const role = (u.role || "").toLowerCase()
       return email.includes(q) || role.includes(q)
+      })
+    // Sort: Active first, then Suspended; keep most recent created_at within groups
+    return [...base].sort((a, b) => {
+      if (a.status !== b.status) return a.status === "Active" ? -1 : 1
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     })
   }, [users, query])
 
@@ -89,6 +129,7 @@ export function UserManagement() {
   }
 
   return (
+    <>
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between gap-4">
@@ -116,8 +157,9 @@ export function UserManagement() {
               <TableRow>
                 <TableHead>Email</TableHead>
                 <TableHead>Current Role</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead>Created At</TableHead>
-                {/* <TableHead className="text-right">Actions</TableHead> */}
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -130,20 +172,40 @@ export function UserManagement() {
                       {user.role.toUpperCase()}
                     </Badge>
                   </TableCell>
+                  <TableCell>
+                    <Badge
+                      className={user.status === "Active" ? "bg-green-600 text-white hover:bg-green-600" : "bg-red-600 text-white hover:bg-red-600"}
+                    >
+                      {user.status}
+                    </Badge>
+                  </TableCell>
                   <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
                   <TableCell className="text-right">
-                    {/* <Select
-                      value={user.role}
-                      onValueChange={(value: "admin" | "staff") => updateUserRole(user.user_id, value)}
-                    >
-                      <SelectTrigger className="w-32">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="admin">Admin</SelectItem>
-                        <SelectItem value="staff">Staff</SelectItem>
-                      </SelectContent>
-                    </Select> */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" aria-label="Actions">
+                          <Menu className="h-4 w-4" />
+                          <span className="sr-only">Actions</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {user.status === "Suspended" ? (
+                          <DropdownMenuItem
+                            className="text-green-700 hover:text-green-800 hover:bg-green-50 focus:bg-green-50"
+                            onClick={() => toggleUserStatus(user.user_id, user.status)}
+                          >
+                            Activate
+                          </DropdownMenuItem>
+                        ) : (
+                          <DropdownMenuItem
+                            className="text-red-700 hover:text-red-800 hover:bg-red-50 focus:bg-red-50"
+                            onClick={() => requestSuspend(user.user_id, user.email)}
+                          >
+                            Suspend
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))}
@@ -174,6 +236,11 @@ export function UserManagement() {
                     <Shield className="mr-1 h-3 w-3" />
                     {user.role.toUpperCase()}
                   </Badge>
+                  <Badge
+                    className={user.status === "Active" ? "bg-green-600 text-white hover:bg-green-600" : "bg-red-600 text-white hover:bg-red-600"}
+                  >
+                    {user.status}
+                  </Badge>
                 </div>
               </div>
             </Card>
@@ -200,7 +267,48 @@ export function UserManagement() {
             </div>
           </div>
         </div>
+        <div className="mt-4 text-sm text-muted-foreground">
+          <p>
+            Toggle a user's status:
+            <span className="ml-2">Active ➝ Suspended disables login</span>
+          </p>
+        </div>
       </CardContent>
     </Card>
+    {/* Suspend Confirmation Modal */}
+    <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Are you sure you want to suspend this user?</AlertDialogTitle>
+        </AlertDialogHeader>
+        <div className="space-y-2 py-2">
+          <p className="text-sm text-muted-foreground">
+            Type "confirm suspend {targetUserForSuspend?.email}" to enable the suspend action.
+          </p>
+          <Input
+            value={confirmText}
+            onChange={(e) => setConfirmText(e.target.value)}
+            placeholder={targetUserForSuspend ? `confirm suspend ${targetUserForSuspend.email}` : ""}
+          />
+        </div>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-red-600 hover:bg-red-700"
+            disabled={
+              !targetUserForSuspend || confirmText !== `confirm suspend ${targetUserForSuspend.email}`
+            }
+            onClick={async () => {
+              if (!targetUserForSuspend) return
+              await toggleUserStatus(targetUserForSuspend.id, "Active")
+              setConfirmOpen(false)
+            }}
+          >
+            Suspend
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   )
 }

@@ -61,9 +61,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: message }, { status: isDuplicate ? 409 : 500 })
     }
 
-    // Insert profile with role
+    // Insert profile with role and default Active status
     const { error: upsertErr } = await service.from("user_profiles").upsert(
-      { user_id: created.user.id, email, role },
+      { user_id: created.user.id, email, role, status: "Active" },
       { onConflict: "user_id" }
     )
     if (upsertErr) {

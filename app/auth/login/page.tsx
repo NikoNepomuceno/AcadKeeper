@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { useToast } from "@/hooks/use-toast"
@@ -29,12 +28,27 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data: signInData, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
       if (error) throw error
+
+      // After successful auth, verify the account is not suspended
+      const userId = signInData.user?.id
+      if (userId) {
+        const { data: profile, error: profileErr } = await supabase
+          .from("user_profiles")
+          .select("status")
+          .eq("user_id", userId)
+          .single()
+        if (profileErr) throw profileErr
+        if (profile?.status === "Suspended") {
+          await supabase.auth.signOut()
+          throw new Error("Your account is suspended. Please contact an administrator.")
+        }
+      }
 
       toast({
         title: "Success",
@@ -108,12 +122,7 @@ export default function LoginPage() {
                   {isLoading ? "Logging in..." : "Login"}
                 </Button>
               </div>
-              <div className="mt-4 text-center text-sm">
-                Don&apos;t have an account?{" "}
-                <Link href="/auth/signup" className="underline underline-offset-4">
-                  Sign up
-                </Link>
-              </div>
+              {/* Registration removed: users are created by SuperAdmin */}
             </form>
           </CardContent>
         </Card>

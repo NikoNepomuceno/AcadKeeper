@@ -32,6 +32,7 @@ export interface UserProfile {
   user_id: string
   email: string
   role: "superAdmin" | "admin" | "staff"
+  status: "Active" | "Suspended"
   created_at: string
   updated_at: string
 }
