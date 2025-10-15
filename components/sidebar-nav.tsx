@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { LayoutDashboard, Package, History, BarChart3, Menu, X, LogOut, Users, Shield, Crown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -30,27 +30,31 @@ export function SidebarNav({ activeView, onViewChange }: SidebarNavProps) {
   const [isOpen, setIsOpen] = useState(true)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [isLogoutOpen, setIsLogoutOpen] = useState(false)
+  const [pendingApprovals, setPendingApprovals] = useState(0)
   const router = useRouter()
   const { toast } = useToast()
   const { profile, isAdmin, isSuperAdmin } = useAuth()
+  const supabase = createClient()
 
-  const navItems = [
-    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { id: "inventory", label: "Inventory", icon: Package },
-    { id: "logs", label: "Activity Log", icon: History },
-    { id: "analytics", label: "Analytics", icon: BarChart3 },
-    ...(isSuperAdmin ? [{ id: "superadmin", label: "Super Admin", icon: Crown }] : []),
-    ...(isAdmin
-      ? [
-          { id: "approvals", label: "Approvals", icon: Shield },
-          { id: "users", label: "User Management", icon: Users },
-        ]
-      : []),
-  ]
+  const navItems = isSuperAdmin
+    ? [
+        // Super Admin sees only the Super Admin section
+        { id: "superadmin", label: "Super Admin", icon: Crown },
+      ]
+    : [
+        { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+        { id: "inventory", label: "Inventory", icon: Package },
+        { id: "logs", label: "Activity Log", icon: History },
+        ...(isAdmin
+          ? [
+              { id: "approvals", label: "Approvals", icon: Shield },
+              { id: "users", label: "User Management", icon: Users },
+            ]
+          : []),
+      ]
 
   const handleLogout = async () => {
     setIsLoggingOut(true)
-    const supabase = createClient()
 
     try {
       const { error } = await supabase.auth.signOut()
@@ -73,6 +77,19 @@ export function SidebarNav({ activeView, onViewChange }: SidebarNavProps) {
       setIsLoggingOut(false)
     }
   }
+
+  useEffect(() => {
+    async function fetchPending() {
+      const { count, error } = await supabase
+        .from("stockout_requests")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "pending")
+      if (!error) setPendingApprovals(count || 0)
+    }
+    fetchPending()
+    const interval = setInterval(fetchPending, 15000)
+    return () => clearInterval(interval)
+  }, [])
 
   return (
     <>
@@ -122,12 +139,22 @@ export function SidebarNav({ activeView, onViewChange }: SidebarNavProps) {
                   variant={activeView === item.id ? "secondary" : "ghost"}
                   className="w-full justify-start"
                   onClick={() => {
+                    if (item.id === "superadmin") {
+                      router.push("/superAdmin")
+                      setIsOpen(false)
+                      return
+                    }
                     onViewChange(item.id)
                     setIsOpen(false)
                   }}
                 >
                   <Icon className="mr-2 h-4 w-4" />
                   {item.label}
+                  {item.id === "approvals" && pendingApprovals > 0 && (
+                    <span className="ml-auto inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-red-600 px-1.5 text-[10px] font-medium leading-4 text-white">
+                      {pendingApprovals}
+                    </span>
+                  )}
                 </Button>
               )
             })}

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { createClient } from "@/lib/supabase/client"
 import type { UserProfile } from "@/types/inventory"
 import { useAuth } from "@/lib/auth-context"
@@ -10,10 +10,12 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { Shield, UserCog } from "lucide-react"
+import { Input } from "@/components/ui/input"
 
 export function UserManagement() {
   const [users, setUsers] = useState<UserProfile[]>([])
   const [loading, setLoading] = useState(true)
+  const [query, setQuery] = useState("")
   const supabase = createClient()
   const { toast } = useToast()
   const { isSuperAdmin } = useAuth()
@@ -64,6 +66,16 @@ export function UserManagement() {
     fetchUsers()
   }
 
+  const filteredUsers = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return users
+    return users.filter((u) => {
+      const email = (u.email || "").toLowerCase()
+      const role = (u.role || "").toLowerCase()
+      return email.includes(q) || role.includes(q)
+    })
+  }, [users, query])
+
   if (loading) {
     return (
       <Card>
@@ -79,11 +91,20 @@ export function UserManagement() {
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center gap-2">
-          <UserCog className="h-6 w-6" />
-          <div>
-            <CardTitle>User Management</CardTitle>
-            <CardDescription>Manage user roles and permissions</CardDescription>
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <UserCog className="h-6 w-6" />
+            <div>
+              <CardTitle>User Management</CardTitle>
+              <CardDescription>Manage user roles and permissions</CardDescription>
+            </div>
+          </div>
+          <div className="w-full sm:w-64">
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search by email or role..."
+            />
           </div>
         </div>
       </CardHeader>
@@ -100,7 +121,7 @@ export function UserManagement() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.map((user) => (
+              {filteredUsers.map((user) => (
                 <TableRow key={user.id}>
                   <TableCell className="font-medium">{user.email}</TableCell>
                   <TableCell>
@@ -126,13 +147,20 @@ export function UserManagement() {
                   </TableCell>
                 </TableRow>
               ))}
+              {filteredUsers.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                    No users match "{query}".
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </div>
 
         {/* Mobile Card View */}
         <div className="md:hidden space-y-4">
-          {users.map((user) => (
+          {filteredUsers.map((user) => (
             <Card key={user.id} className="p-4">
               <div className="space-y-3">
                 <div>
@@ -150,6 +178,9 @@ export function UserManagement() {
               </div>
             </Card>
           ))}
+          {filteredUsers.length === 0 && (
+            <div className="text-center text-muted-foreground py-8">No users match "{query}".</div>
+          )}
         </div>
 
         <div className="mt-6 rounded-lg border bg-muted/50 p-4">

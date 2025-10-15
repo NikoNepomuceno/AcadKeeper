@@ -122,9 +122,15 @@ export function InventoryTable({
   const filteredItems = useMemo(() => {
     const searchLower = deferredSearch.toLowerCase()
     return items.filter((item) => {
+      // Get the status label for search matching
+      const status = getStockStatus(item)
+      const statusLabel = status.label.toLowerCase()
+      
       const matchesSearch =
         item.item_name.toLowerCase().includes(searchLower) ||
-        item.category.toLowerCase().includes(searchLower)
+        item.category.toLowerCase().includes(searchLower) ||
+        (item.location && item.location.toLowerCase().includes(searchLower)) ||
+        statusLabel.includes(searchLower)
 
       const matchesCategory = categoryFilter === "all" || item.category === categoryFilter
 
@@ -172,7 +178,7 @@ export function InventoryTable({
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search items..."
+              placeholder="Search by name, category, location, or status..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9"

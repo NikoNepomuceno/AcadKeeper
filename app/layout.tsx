@@ -1,10 +1,11 @@
 import type React from "react"
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import "./globals.css"
 import { Toaster } from "@/components/ui/toaster"
 import { LoadingProvider } from "@/components/loading-provider"
 import { AuthProvider } from "@/lib/auth-context"
+import { PageTransition } from "@/components/page-transition"
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -19,7 +20,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "AcadKeeper",
   description: "Manage your school supplies inventory with comprehensive tracking",
-  viewport: "width=device-width, initial-scale=1",
+}
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 }
 
 export default function RootLayout({
@@ -32,7 +37,9 @@ export default function RootLayout({
       <body className="antialiased">
         <LoadingProvider>
           <AuthProvider>
-            {children}
+            <PageTransition>
+              {children}
+            </PageTransition>
             <Toaster />
           </AuthProvider>
         </LoadingProvider>

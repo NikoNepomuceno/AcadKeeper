@@ -25,7 +25,29 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
+    // Validate password strength: at least one uppercase, one digit, and one special character
+    const passwordIsValid = /(?=.*[A-Z])(?=.*\d)(?=.*[~`!@#$%^&*()_+\-={}\[\]|\\:;"'<>,.?/]).+/.test(password)
+    if (!passwordIsValid) {
+      return NextResponse.json(
+        {
+          error: "Password must include at least one uppercase letter, one number, and one special character.",
+        },
+        { status: 400 }
+      )
+    }
+
     const service = createServiceClient()
+
+    // Prevent duplicate email (check existing profiles by email)
+    const { data: existing } = await service
+      .from("user_profiles")
+      .select("id")
+      .eq("email", email)
+      .limit(1)
+      .maybeSingle()
+    if (existing) {
+      return NextResponse.json({ error: "Email already exists" }, { status: 409 })
+    }
     // Create auth user
     const { data: created, error: createErr } = await service.auth.admin.createUser({
       email,
@@ -33,7 +55,10 @@ export async function POST(req: NextRequest) {
       email_confirm: true,
     })
     if (createErr || !created.user) {
-      return NextResponse.json({ error: createErr?.message || "Failed to create auth user" }, { status: 500 })
+      // Map known duplicate email error to 409
+      const message = createErr?.message || "Failed to create auth user"
+      const isDuplicate = /already exists|already registered|duplicate/i.test(message)
+      return NextResponse.json({ error: message }, { status: isDuplicate ? 409 : 500 })
     }
 
     // Insert profile with role

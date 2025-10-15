@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import dynamic from "next/dynamic"
 import { createClient } from "@/lib/supabase/client"
-import type { InventoryItem, InventoryLog } from "@/types/inventory"
+import type { InventoryItem, InventoryLog, StockoutRequest } from "@/types/inventory"
 import { InventoryTable } from "@/components/inventory-table"
 import { Approvals } from "@/components/stockout-approvals"
 import { SidebarNav } from "@/components/sidebar-nav"
@@ -13,6 +13,7 @@ import { Plus } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useAuth } from "@/lib/auth-context"
 import { useLoading } from "@/components/loading-provider"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 
 // Defer heavy client components until needed
 const DashboardStats = dynamic(() => import("@/components/dashboard-stats").then((m) => m.DashboardStats), {
@@ -29,6 +30,10 @@ const StockAdjustment = dynamic(() => import("@/components/stock-adjustment").th
   ssr: false,
 })
 const ActivityLog = dynamic(() => import("@/components/activity-log").then((m) => m.ActivityLog), { ssr: false })
+const ApprovalsActivity = dynamic(
+  () => import("@/components/approvals-activity").then((m) => m.ApprovalsActivity),
+  { ssr: false },
+)
 const UserManagement = dynamic(() => import("@/components/user-management").then((m) => m.UserManagement), {
   ssr: false,
 })
@@ -37,6 +42,7 @@ export function InventoryDashboard() {
   type LogRange = "day" | "week" | "month" | "year"
   const [items, setItems] = useState<InventoryItem[]>([])
   const [logs, setLogs] = useState<InventoryLog[]>([])
+  const [approvalEvents, setApprovalEvents] = useState<(StockoutRequest & { item_name?: string; unit?: string })[]>([])
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isStockOpen, setIsStockOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null)
@@ -54,6 +60,7 @@ export function InventoryDashboard() {
   useEffect(() => {
     fetchItems()
     fetchLogs()
+    fetchApprovalsActivity()
   }, [showArchived, logRange])
 
   // Clear any global loading overlay once the dashboard shell mounts
@@ -109,6 +116,22 @@ export function InventoryDashboard() {
       console.error("[v0] Error fetching logs:", error)
     } else {
       setLogs(data || [])
+    }
+  }
+
+  async function fetchApprovalsActivity() {
+    const startIso = getRangeStartIso(logRange)
+    const { data, error } = await supabase
+      .from("stockout_requests")
+      .select("*, inventory:inventory(item_name, unit)")
+      .gte("created_at", startIso)
+      .order("created_at", { ascending: false })
+
+    if (error) {
+      console.error("[v0] Error fetching approvals activity:", error)
+    } else {
+      const mapped = (data || []).map((r: any) => ({ ...r, item_name: r.inventory?.item_name, unit: r.inventory?.unit }))
+      setApprovalEvents(mapped)
     }
   }
 
@@ -181,7 +204,20 @@ export function InventoryDashboard() {
           )}
 
           {activeView === "logs" && (
-            <ActivityLog {...({ logs, range: logRange, onRangeChange: setLogRange } as any)} />
+            <Tabs defaultValue="inventory" className="w-full">
+              <TabsList>
+                <TabsTrigger value="inventory">Inventory Activity</TabsTrigger>
+                <TabsTrigger value="approvals">Approvals Activity</TabsTrigger>
+              </TabsList>
+              <TabsContent value="inventory">
+                <ActivityLog {...({ logs, range: logRange, onRangeChange: setLogRange } as any)} />
+              </TabsContent>
+              <TabsContent value="approvals">
+                <ApprovalsActivity
+                  {...({ requests: approvalEvents, range: logRange, onRangeChange: setLogRange } as any)}
+                />
+              </TabsContent>
+            </Tabs>
           )}
 
           {activeView === "approvals" && isAdmin && (

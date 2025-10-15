@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
-import type { InventoryItem } from "@/types/inventory"
+import type { InventoryItem, InventoryLog } from "@/types/inventory"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Package, AlertTriangle, TrendingUp, Archive } from "lucide-react"
@@ -28,11 +28,13 @@ export function DashboardStats() {
   const [items, setItems] = useState<InventoryItem[]>([])
   const [timeRange, setTimeRange] = useState<TimeRange>("month")
   const [loading, setLoading] = useState(true)
+  const [logs, setLogs] = useState<InventoryLog[]>([])
 
   const supabase = createClient()
 
   useEffect(() => {
     fetchItems()
+    fetchLogs()
   }, [timeRange])
 
   async function fetchItems() {
@@ -45,6 +47,40 @@ export function DashboardStats() {
       setItems(data || [])
     }
     setLoading(false)
+  }
+
+  function getRangeStartIso(range: TimeRange) {
+    const now = new Date()
+    const start = new Date(now)
+    if (range === "day") {
+      start.setHours(0, 0, 0, 0)
+    } else if (range === "week") {
+      const day = (now.getDay() + 6) % 7 // Monday as start
+      start.setDate(now.getDate() - day)
+      start.setHours(0, 0, 0, 0)
+    } else if (range === "month") {
+      start.setDate(1)
+      start.setHours(0, 0, 0, 0)
+    } else if (range === "year") {
+      start.setMonth(0, 1)
+      start.setHours(0, 0, 0, 0)
+    }
+    return start.toISOString()
+  }
+
+  async function fetchLogs() {
+    const startIso = getRangeStartIso(timeRange)
+    const { data, error } = await supabase
+      .from("inventory_logs")
+      .select("*")
+      .gte("created_at", startIso)
+      .order("created_at", { ascending: true })
+
+    if (error) {
+      console.error("[v0] Error fetching logs:", error)
+    } else {
+      setLogs(data || [])
+    }
   }
 
   const totalItems = items.filter((item) => !item.is_archived).length
@@ -115,6 +151,25 @@ export function DashboardStats() {
     },
   ].filter((data) => data.value > 0)
 
+  // Build activity time series per day across selected range (fill missing days with 0)
+  const startIso = getRangeStartIso(timeRange)
+  const startDate = new Date(startIso)
+  const endDate = new Date()
+  const dayFormatter = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" })
+  const countsByKey = new Map<string, number>()
+  for (const log of logs) {
+    const key = dayFormatter.format(new Date(log.created_at))
+    countsByKey.set(key, (countsByKey.get(key) || 0) + 1)
+  }
+  const series: { date: string; count: number }[] = []
+  const cursor = new Date(startDate)
+  while (cursor <= endDate) {
+    const key = dayFormatter.format(cursor)
+    series.push({ date: key, count: countsByKey.get(key) || 0 })
+    cursor.setDate(cursor.getDate() + 1)
+  }
+  const activityData = series
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -149,7 +204,7 @@ export function DashboardStats() {
         })}
       </div>
 
-      <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
+      <div className="grid gap-6 grid-cols-1 xl:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Stock by Category</CardTitle>
@@ -163,7 +218,7 @@ export function DashboardStats() {
                     color: "hsl(var(--chart-1))",
                   },
                 }}
-                className="h-[300px]"
+                className="h-[300px] w-full"
               >
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={categoryData}>
@@ -193,7 +248,7 @@ export function DashboardStats() {
                     label: "Items",
                   },
                 }}
-                className="h-[300px]"
+                className="h-[300px] w-full"
               >
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -223,37 +278,39 @@ export function DashboardStats() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Total Quantity by Category</CardTitle>
+            <CardTitle>Activity Logs</CardTitle>
           </CardHeader>
           <CardContent>
-            {categoryData.length > 0 ? (
+            {activityData.length > 0 ? (
               <ChartContainer
                 config={{
-                  totalQuantity: {
-                    label: "Total Units",
+                  count: {
+                    label: "Events",
                     color: "hsl(var(--chart-2))",
                   },
                 }}
-                className="h-[300px]"
+                className="h-[300px] w-full"
               >
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={categoryData}>
+                  <LineChart data={activityData}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="category" angle={-45} textAnchor="end" height={100} />
-                    <YAxis />
+                    <XAxis dataKey="date" />
+                    <YAxis allowDecimals={false} domain={[0, (dataMax: number) => Math.max(1, Math.ceil((dataMax as number) + 1))]} />
                     <ChartTooltip content={<ChartTooltipContent />} />
                     <Line
                       type="monotone"
-                      dataKey="totalQuantity"
-                      stroke="var(--color-totalQuantity)"
+                      dataKey="count"
+                      stroke="var(--color-count)"
                       strokeWidth={2}
-                      dot={{ r: 4 }}
+                      dot={{ r: 3, stroke: 'var(--color-count)', fill: 'var(--color-count)' }}
+                      connectNulls
+                      isAnimationActive={false}
                     />
                   </LineChart>
                 </ResponsiveContainer>
               </ChartContainer>
             ) : (
-              <div className="flex h-[300px] items-center justify-center text-muted-foreground">No data available</div>
+              <div className="flex h-[300px] items-center justify-center text-muted-foreground">No activity in selected range</div>
             )}
           </CardContent>
         </Card>
