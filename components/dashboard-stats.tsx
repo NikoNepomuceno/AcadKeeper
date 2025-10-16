@@ -286,7 +286,7 @@ export function DashboardStats() {
                 config={{
                   count: {
                     label: "Events",
-                    color: "hsl(var(--chart-2))",
+                    color: "#8884d8",
                   },
                 }}
                 className="h-[300px] w-full"
@@ -298,12 +298,12 @@ export function DashboardStats() {
                     <YAxis allowDecimals={false} domain={[0, (dataMax: number) => Math.max(1, Math.ceil((dataMax as number) + 1))]} />
                     <ChartTooltip content={<ChartTooltipContent />} />
                     <Line
-                      type="monotone"
+                      type="linear"
                       dataKey="count"
-                      stroke="var(--color-count)"
+                      stroke="#8884d8"
                       strokeWidth={2}
-                      dot={{ r: 3, stroke: 'var(--color-count)', fill: 'var(--color-count)' }}
-                      connectNulls
+                      dot={{ r: 4, stroke: '#8884d8', fill: '#8884d8' }}
+                      connectNulls={false}
                       isAnimationActive={false}
                     />
                   </LineChart>
