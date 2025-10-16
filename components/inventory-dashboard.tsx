@@ -177,6 +177,11 @@ export function InventoryDashboard() {
     handleCloseStock()
   }
 
+  function handleUserRefresh() {
+    // This is a no-op for the inventory dashboard since UserManagement
+    // handles its own data fetching internally
+  }
+
   return (
     <div className="flex min-h-screen">
       <SidebarNav activeView={activeView} onViewChange={setActiveView} />
@@ -234,7 +239,7 @@ export function InventoryDashboard() {
             <Approvals onApproved={async () => { await fetchItems(); await fetchLogs(); }} />
           )}
 
-          {activeView === "users" && isAdmin && <UserManagement />}
+          {activeView === "users" && isAdmin && <UserManagement onRefresh={handleUserRefresh} />}
 
           {activeView === "analytics" && (
             <div className="text-center py-12">

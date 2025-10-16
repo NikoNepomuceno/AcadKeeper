@@ -121,7 +121,7 @@ export function InventoryTable({
 
   const filteredItems = useMemo(() => {
     const searchLower = deferredSearch.toLowerCase()
-    return items.filter((item) => {
+    const filtered = items.filter((item) => {
       // Get the status label for search matching
       const status = getStockStatus(item)
       const statusLabel = status.label.toLowerCase()
@@ -146,6 +146,24 @@ export function InventoryTable({
       const matchesLocation = locationFilter === "all" || item.location === locationFilter
 
       return matchesSearch && matchesCategory && matchesStatus && matchesLocation
+    })
+
+    // Sort items: in-stock items first, then out-of-stock items at the bottom
+    return filtered.sort((a, b) => {
+      // If both items have the same stock status, maintain original order (by created_at desc)
+      if (a.quantity === 0 && b.quantity === 0) {
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      }
+      if (a.quantity > 0 && b.quantity > 0) {
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      }
+      
+      // Out-of-stock items (quantity === 0) go to the bottom
+      if (a.quantity === 0) return 1
+      if (b.quantity === 0) return -1
+      
+      // This shouldn't happen, but fallback to original order
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     })
   }, [items, deferredSearch, categoryFilter, statusFilter, locationFilter])
 

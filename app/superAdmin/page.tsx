@@ -25,6 +25,7 @@ export default function SuperAdminPage() {
   const [role, setRole] = useState<"admin" | "staff">("staff")
   const [submitting, setSubmitting] = useState(false)
   const [activeView, setActiveView] = useState("superadmin")
+  const [refreshUsers, setRefreshUsers] = useState(0)
 
   useEffect(() => {
     if (!loading && !isSuperAdmin) {
@@ -36,6 +37,10 @@ export default function SuperAdminPage() {
   useEffect(() => {
     setIsLoading(false)
   }, [setIsLoading])
+
+  function handleUserRefresh() {
+    setRefreshUsers(prev => prev + 1)
+  }
 
   async function handleCreateUser(e: React.FormEvent) {
     e.preventDefault()
@@ -65,6 +70,7 @@ export default function SuperAdminPage() {
       toast({ title: "User created", description: `Account for ${email} created` })
       setEmail("")
       setPassword("")
+      handleUserRefresh()
     } catch (err: any) {
       toast({ title: "Error", description: err.message || "Failed to create user", variant: "destructive" })
     } finally {
@@ -104,7 +110,7 @@ export default function SuperAdminPage() {
             </CardContent>
           </Card>
 
-          <UserManagement />
+          <UserManagement onRefresh={handleUserRefresh} />
         </div>
       </div>
     </div>

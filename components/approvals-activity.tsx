@@ -56,34 +56,61 @@ export const ApprovalsActivity: React.FC<ApprovalsActivityProps> = ({ requests, 
         {requests.length === 0 ? (
           <p className="text-center text-muted-foreground py-8">No approvals activity for the selected range.</p>
         ) : (
-          <div className="rounded-md border overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date & Time</TableHead>
-                  <TableHead>Item</TableHead>
-                  <TableHead>Quantity</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Notes</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {requests.map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell className="text-muted-foreground">{formatDate(r.created_at)}</TableCell>
-                    <TableCell>{r.item_name || "—"}</TableCell>
-                    <TableCell>
-                      {r.quantity} {r.unit || ""}
-                    </TableCell>
-                    <TableCell>{statusBadge(r.status)}</TableCell>
-                    <TableCell className="max-w-[320px] whitespace-pre-wrap">
-                      {r.status === "pending" ? r.notes || "—" : r.decision_notes || r.notes || "—"}
-                    </TableCell>
+          <>
+            {/* Desktop Table View */}
+            <div className="hidden md:block rounded-md border overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date & Time</TableHead>
+                    <TableHead>Item</TableHead>
+                    <TableHead>Quantity</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Notes</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                </TableHeader>
+                <TableBody>
+                  {requests.map((r) => (
+                    <TableRow key={r.id}>
+                      <TableCell className="text-muted-foreground">{formatDate(r.created_at)}</TableCell>
+                      <TableCell>{r.item_name || "—"}</TableCell>
+                      <TableCell>
+                        {r.quantity} {r.unit || ""}
+                      </TableCell>
+                      <TableCell>{statusBadge(r.status)}</TableCell>
+                      <TableCell className="max-w-[320px] whitespace-pre-wrap">
+                        {r.status === "pending" ? r.notes || "—" : r.decision_notes || r.notes || "—"}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="md:hidden space-y-4">
+              {requests.map((r) => (
+                <Card key={r.id} className="p-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-medium text-lg">{r.item_name || "—"}</h3>
+                      {statusBadge(r.status)}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      <p><strong>Date:</strong> {formatDate(r.created_at)}</p>
+                      <p><strong>Quantity:</strong> {r.quantity} {r.unit || ""}</p>
+                    </div>
+                    <div className="text-sm">
+                      <p className="font-medium mb-1">Notes:</p>
+                      <p className="text-muted-foreground whitespace-pre-wrap">
+                        {r.status === "pending" ? r.notes || "—" : r.decision_notes || r.notes || "—"}
+                      </p>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </>
         )}
       </CardContent>
     </Card>

@@ -14,7 +14,11 @@ import { Shield, UserCog, Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
-export function UserManagement() {
+interface UserManagementProps {
+  onRefresh?: () => void
+}
+
+export function UserManagement({ onRefresh }: UserManagementProps = {}) {
   const [users, setUsers] = useState<UserProfile[]>([])
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState("")
@@ -67,6 +71,7 @@ export function UserManagement() {
     }
     toast({ title: "Success", description: `User ${newStatus.toLowerCase()}` })
     fetchUsers()
+    onRefresh?.()
   }
 
   function requestSuspend(userId: string, email: string) {
@@ -75,30 +80,6 @@ export function UserManagement() {
     setConfirmOpen(true)
   }
 
-  async function updateUserRole(userId: string, newRole: "admin" | "staff") {
-    if (!isSuperAdmin && !isAdmin) {
-      toast({ title: "Forbidden", description: "Only admin or super admin can change roles", variant: "destructive" })
-      return
-    }
-    const { error } = await supabase.from("user_profiles").update({ role: newRole }).eq("user_id", userId)
-
-    if (error) {
-      console.error("[v0] Error updating user role:", error)
-      toast({
-        title: "Error",
-        description: "Failed to update user role",
-        variant: "destructive",
-      })
-      return
-    }
-
-    toast({
-      title: "Success",
-      description: "User role updated successfully",
-    })
-
-    fetchUsers()
-  }
 
   const filteredUsers = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -204,22 +185,6 @@ export function UserManagement() {
                             Suspend
                           </DropdownMenuItem>
                         )}
-                        {user.role !== "admin" && (
-                          <DropdownMenuItem
-                            className="text-blue-700 hover:text-blue-800 hover:bg-blue-50 focus:bg-blue-50"
-                            onClick={() => updateUserRole(user.user_id, "admin")}
-                          >
-                            Make Admin
-                          </DropdownMenuItem>
-                        )}
-                        {user.role !== "staff" && (
-                          <DropdownMenuItem
-                            className="text-gray-700 hover:text-gray-800 hover:bg-gray-50 focus:bg-gray-50"
-                            onClick={() => updateUserRole(user.user_id, "staff")}
-                          >
-                            Make Staff
-                          </DropdownMenuItem>
-                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -276,26 +241,6 @@ export function UserManagement() {
                       onClick={() => requestSuspend(user.user_id, user.email)}
                     >
                       Suspend
-                    </Button>
-                  )}
-                  {user.role !== "admin" && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-blue-700 border-blue-300 hover:bg-blue-50"
-                      onClick={() => updateUserRole(user.user_id, "admin")}
-                    >
-                      Make Admin
-                    </Button>
-                  )}
-                  {user.role !== "staff" && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-gray-700 border-gray-300 hover:bg-gray-50"
-                      onClick={() => updateUserRole(user.user_id, "staff")}
-                    >
-                      Make Staff
                     </Button>
                   )}
                 </div>
