@@ -180,7 +180,7 @@ export function SidebarNav({ activeView, onViewChange }: SidebarNavProps) {
                   className="w-full justify-start bg-red-100 text-red-600 hover:bg-red-200 hover:text-red-700 text-destructive hover:text-destructive"
                   disabled={isLoggingOut}
                 >
-                  <LogOut className="mr-2 h-4 w-4" />
+                  <LogOut className="mr-2 h-4 w-4 bg-red-600 text-white rounded-full p-1" />
                   {isLoggingOut ? "Logging out..." : "Logout"}
                 </Button>
               </AlertDialogTrigger>
@@ -191,7 +191,7 @@ export function SidebarNav({ activeView, onViewChange }: SidebarNavProps) {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleLogout}>Logout</AlertDialogAction>
+                  <AlertDialogAction onClick={handleLogout} className="bg-red-600 hover:bg-red-700 text-white">Logout</AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
