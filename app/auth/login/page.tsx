@@ -11,7 +11,8 @@ import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { useToast } from "@/hooks/use-toast"
 import { useLoading } from "@/components/loading-provider"
-import { Eye, EyeOff } from "lucide-react"
+import { useRateLimit } from "@/hooks/use-rate-limit"
+import { Eye, EyeOff, Clock } from "lucide-react"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -21,9 +22,29 @@ export default function LoginPage() {
   const router = useRouter()
   const { toast } = useToast()
   const { setIsLoading: setGlobalLoading } = useLoading()
+  const { 
+    failedAttempts, 
+    isBlocked, 
+    timeRemaining, 
+    blockDuration, 
+    recordFailedAttempt, 
+    resetRateLimit, 
+    canAttempt 
+  } = useRateLimit()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Check if user is currently blocked
+    if (!canAttempt()) {
+      toast({
+        title: "Too Many Failed Attempts",
+        description: `Please wait ${timeRemaining} seconds before trying again.`,
+        variant: "destructive",
+      })
+      return
+    }
+
     const supabase = createClient()
     setIsLoading(true)
 
@@ -50,6 +71,9 @@ export default function LoginPage() {
         }
       }
 
+      // Reset rate limiting on successful login
+      resetRateLimit()
+
       toast({
         title: "Success",
         description: "Logged in successfully!",
@@ -60,11 +84,26 @@ export default function LoginPage() {
       router.push("/")
       router.refresh()
     } catch (error: unknown) {
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to login",
-        variant: "destructive",
-      })
+      // Record failed attempt
+      recordFailedAttempt()
+      
+      const errorMessage = error instanceof Error ? error.message : "Failed to login"
+      
+      // Show different messages based on failed attempts
+      if (failedAttempts + 1 >= 5) {
+        const blockTime = failedAttempts + 1 === 5 ? 15 : 30
+        toast({
+          title: "Too Many Failed Attempts",
+          description: `Account temporarily locked for ${blockTime} seconds. Please wait before trying again.`,
+          variant: "destructive",
+        })
+      } else {
+        toast({
+          title: "Error",
+          description: errorMessage,
+          variant: "destructive",
+        })
+      }
     } finally {
       setIsLoading(false)
     }
@@ -118,9 +157,29 @@ export default function LoginPage() {
                     </Button>
                   </div>
                 </div>
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? "Logging in..." : "Login"}
+                <Button 
+                  type="submit" 
+                  className="w-full" 
+                  disabled={isLoading || isBlocked}
+                >
+                  {isLoading ? "Logging in..." : isBlocked ? `Wait ${timeRemaining}s` : "Login"}
                 </Button>
+                
+                {/* Rate limiting feedback */}
+                {isBlocked && (
+                  <div className="flex items-center justify-center gap-2 p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">
+                    <Clock className="h-4 w-4" />
+                    <span>
+                      Too many failed attempts. Please wait {timeRemaining} seconds before trying again.
+                    </span>
+                  </div>
+                )}
+                
+                {failedAttempts > 0 && !isBlocked && (
+                  <div className="text-center text-sm text-amber-600">
+                    Failed attempts: {failedAttempts}/5
+                  </div>
+                )}
               </div>
               {/* Registration removed: users are created by SuperAdmin */}
             </form>
