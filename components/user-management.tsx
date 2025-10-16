@@ -23,7 +23,7 @@ export function UserManagement() {
   const [targetUserForSuspend, setTargetUserForSuspend] = useState<{ id: string; email: string } | null>(null)
   const supabase = createClient()
   const { toast } = useToast()
-  const { isSuperAdmin } = useAuth()
+  const { isSuperAdmin, isAdmin } = useAuth()
 
   useEffect(() => {
     fetchUsers()
@@ -50,8 +50,8 @@ export function UserManagement() {
   }
 
   async function toggleUserStatus(userId: string, currentStatus: "Active" | "Suspended") {
-    if (!isSuperAdmin) {
-      toast({ title: "Forbidden", description: "Only super admin can change status", variant: "destructive" })
+    if (!isSuperAdmin && !isAdmin) {
+      toast({ title: "Forbidden", description: "Only admin or super admin can change status", variant: "destructive" })
       return
     }
     const newStatus = currentStatus === "Active" ? "Suspended" : "Active"
@@ -76,8 +76,8 @@ export function UserManagement() {
   }
 
   async function updateUserRole(userId: string, newRole: "admin" | "staff") {
-    if (!isSuperAdmin) {
-      toast({ title: "Forbidden", description: "Only super admin can change roles", variant: "destructive" })
+    if (!isSuperAdmin && !isAdmin) {
+      toast({ title: "Forbidden", description: "Only admin or super admin can change roles", variant: "destructive" })
       return
     }
     const { error } = await supabase.from("user_profiles").update({ role: newRole }).eq("user_id", userId)
@@ -204,6 +204,22 @@ export function UserManagement() {
                             Suspend
                           </DropdownMenuItem>
                         )}
+                        {user.role !== "admin" && (
+                          <DropdownMenuItem
+                            className="text-blue-700 hover:text-blue-800 hover:bg-blue-50 focus:bg-blue-50"
+                            onClick={() => updateUserRole(user.user_id, "admin")}
+                          >
+                            Make Admin
+                          </DropdownMenuItem>
+                        )}
+                        {user.role !== "staff" && (
+                          <DropdownMenuItem
+                            className="text-gray-700 hover:text-gray-800 hover:bg-gray-50 focus:bg-gray-50"
+                            onClick={() => updateUserRole(user.user_id, "staff")}
+                          >
+                            Make Staff
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -242,6 +258,47 @@ export function UserManagement() {
                     {user.status}
                   </Badge>
                 </div>
+                <div className="flex flex-wrap gap-2">
+                  {user.status === "Suspended" ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-green-700 border-green-300 hover:bg-green-50"
+                      onClick={() => toggleUserStatus(user.user_id, user.status)}
+                    >
+                      Activate
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-red-700 border-red-300 hover:bg-red-50"
+                      onClick={() => requestSuspend(user.user_id, user.email)}
+                    >
+                      Suspend
+                    </Button>
+                  )}
+                  {user.role !== "admin" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-blue-700 border-blue-300 hover:bg-blue-50"
+                      onClick={() => updateUserRole(user.user_id, "admin")}
+                    >
+                      Make Admin
+                    </Button>
+                  )}
+                  {user.role !== "staff" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-gray-700 border-gray-300 hover:bg-gray-50"
+                      onClick={() => updateUserRole(user.user_id, "staff")}
+                    >
+                      Make Staff
+                    </Button>
+                  )}
+                </div>
               </div>
             </Card>
           ))}
@@ -257,7 +314,7 @@ export function UserManagement() {
               <Badge variant="default" className="w-fit">
                 ADMIN
               </Badge>
-              <p className="flex-1">Full access: Create, Read, Update, Archive items. Manage users and view all logs.</p>
+              <p className="flex-1">Full access: Create, Read, Update, Archive items. Activate/suspend users, change user roles, and view all logs.</p>
             </div>
             <div className="flex flex-col sm:flex-row sm:items-start gap-2">
               <Badge variant="secondary" className="w-fit">
@@ -269,7 +326,7 @@ export function UserManagement() {
         </div>
         <div className="mt-4 text-sm text-muted-foreground">
           <p>
-            Toggle a user's status:
+            Admin and Super Admin can toggle user status:
             <span className="ml-2">Active ➝ Suspended disables login</span>
           </p>
         </div>

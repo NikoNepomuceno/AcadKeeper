@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { LayoutDashboard, Package, History, BarChart3, Menu, X, LogOut, Users, Shield, Crown } from "lucide-react"
+import { LayoutDashboard, Package, History, BarChart3, Menu, X, LogOut, Users, Shield, Crown, Settings } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
@@ -51,6 +51,7 @@ export function SidebarNav({ activeView, onViewChange }: SidebarNavProps) {
               { id: "users", label: "User Management", icon: Users },
             ]
           : []),
+        { id: "settings", label: "Settings", icon: Settings },
       ]
 
   const handleLogout = async () => {
@@ -141,6 +142,17 @@ export function SidebarNav({ activeView, onViewChange }: SidebarNavProps) {
                   onClick={() => {
                     if (item.id === "superadmin") {
                       router.push("/superAdmin")
+                      setIsOpen(false)
+                      return
+                    }
+                    if (item.id === "settings") {
+                      router.push("/settings")
+                      setIsOpen(false)
+                      return
+                    }
+                    // For other views, navigate to main dashboard with the specific view
+                    if (item.id === "dashboard" || item.id === "inventory" || item.id === "logs" || item.id === "approvals" || item.id === "users") {
+                      router.push(`/?view=${item.id}`)
                       setIsOpen(false)
                       return
                     }

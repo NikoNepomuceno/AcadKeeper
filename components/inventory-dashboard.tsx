@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useAuth } from "@/lib/auth-context"
 import { useLoading } from "@/components/loading-provider"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { useSearchParams } from "next/navigation"
 
 // Defer heavy client components until needed
 const DashboardStats = dynamic(() => import("@/components/dashboard-stats").then((m) => m.DashboardStats), {
@@ -54,8 +55,17 @@ export function InventoryDashboard() {
   const [isFormMasked, setIsFormMasked] = useState(false)
   const [logRange, setLogRange] = useState<LogRange>("week")
   const { setIsLoading } = useLoading()
+  const searchParams = useSearchParams()
 
   const supabase = createClient()
+
+  // Handle URL-based navigation
+  useEffect(() => {
+    const view = searchParams.get('view')
+    if (view && ['dashboard', 'inventory', 'logs', 'approvals', 'users'].includes(view)) {
+      setActiveView(view)
+    }
+  }, [searchParams])
 
   useEffect(() => {
     fetchItems()
